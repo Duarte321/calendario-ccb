@@ -13,7 +13,6 @@ DIAS_SEMANA_PT = ["DOMINGO", "SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "Q
 
 def calcular_eventos(ano, lista_eventos):
     agenda = {}
-    # CORREÇÃO AQUI: A semana agora começa no Domingo (SUNDAY) para alinhar com o menu
     calendar.setfirstweekday(calendar.SUNDAY) 
     
     for mes in range(1, 13):
@@ -29,7 +28,6 @@ def calcular_eventos(ano, lista_eventos):
             if deve_marcar:
                 contador = 0
                 dia_encontrado = None
-                # O índice agora bate: 0=Domingo ... 6=Sábado
                 dia_alvo_idx = int(evt["dia_sem"]) 
                 semana_alvo = int(evt["semana"])
                 
@@ -65,7 +63,6 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
     fmt_evento_bg = wb.add_format({'valign': 'center', 'align': 'center', 'border': 1, 'border_color': COR_CINZA_LINHA, 'bg_color': COR_AMARELO_NEON, 'text_wrap': True, 'font_size': 10, 'bold': True})
     fmt_logo_celula = wb.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
 
-    # Garante cálculo correto também no Excel
     dados = calcular_eventos(ano, lista_eventos)
     calendar.setfirstweekday(calendar.SUNDAY)
 
@@ -162,10 +159,10 @@ def gerar_pdf_buffer(ano, lista_eventos):
                 else:
                     chave = f"{ano}-{mes}-{dia}"
                     if chave in dados:
-                        pdf.set_fill_color(255, 255, 0) # Amarelo
+                        pdf.set_fill_color(255, 255, 0)
                         pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
                     else:
-                        pdf.set_fill_color(255, 255, 255) # Branco
+                        pdf.set_fill_color(255, 255, 255)
                         pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
             
             # Loop 2: Escreve os textos
@@ -173,12 +170,10 @@ def gerar_pdf_buffer(ano, lista_eventos):
                 if dia != 0:
                     pdf.set_xy(x_inicial + (idx * largura_coluna) + 1, y_inicial + 1)
                     
-                    # Número do Dia
                     pdf.set_font("Helvetica", style="B", size=11)
                     pdf.set_text_color(0, 0, 0)
                     pdf.cell(6, 5, str(dia), border=0, align="L")
                     
-                    # Texto do Evento
                     chave = f"{ano}-{mes}-{dia}"
                     if chave in dados:
                         texto_evento = "\n".join(dados[chave])
@@ -213,15 +208,100 @@ with st.sidebar:
 
 if 'eventos' not in st.session_state:
     st.session_state['eventos'] = [
-        {"nome": "ENSAIO COM CULTO", "semana": "3", "dia_sem": "6", "interc": "Meses Ímpares", "hora": "19:30 HRS", "local": "ENTRE RIOS"},
-        {"nome": "ENSAIO LOCAL", "semana": "1", "dia_sem": "5", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "SÃO PEDRO DA CIPA"},
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "1",
+            "dia_sem": "6",
+            "interc": "Todos os Meses",
+            "hora": "19:30 HRS",
+            "local": "SÃO PEDRO DA CIPA - MT",
+        },
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "2",
+            "dia_sem": "5",
+            "interc": "Todos os Meses",
+            "hora": "19:30 HRS",
+            "local": "SANTA ELVIRA - MT",
+        },
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "2",
+            "dia_sem": "6",
+            "interc": "Todos os Meses",
+            "hora": "17:30 HRS",
+            "local": "SÃO LOURENÇO DE FATIMA - MT",
+        },
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "2",
+            "dia_sem": "0",
+            "interc": "Todos os Meses",
+            "hora": "16:30 HRS",
+            "local": "JARDIM BOA ESPERANÇA - MT",
+        },
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "3",
+            "dia_sem": "1",
+            "interc": "Todos os Meses",
+            "hora": "19:30 HRS",
+            "local": "CENTRAL JACIARA - MT",
+        },
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "3",
+            "dia_sem": "2",
+            "interc": "Todos os Meses",
+            "hora": "19:30 HRS",
+            "local": "JUSCIMEIRA - MT",
+        },
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "3",
+            "dia_sem": "3",
+            "interc": "Todos os Meses",
+            "hora": "19:30 HRS",
+            "local": "VILA PLANALTO - MT",
+        },
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "3",
+            "dia_sem": "5",
+            "interc": "Todos os Meses",
+            "hora": "19:30 HRS",
+            "local": "SANTO ANTONIO - MT",
+        },
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "4",
+            "dia_sem": "6",
+            "interc": "Todos os Meses",
+            "hora": "19:30 HRS",
+            "local": "DOM AQUINO - MT",
+        },
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "3",
+            "dia_sem": "4",
+            "interc": "Meses Ímpares",
+            "hora": "19:30 HRS",
+            "local": "ENTRE RIOS - MT",
+        },
+        {
+            "nome": "ENSAIO LOCAL",
+            "semana": "3",
+            "dia_sem": "6",
+            "interc": "Meses Pares",
+            "hora": "19:30 HRS",
+            "local": "DISTRITO DE CELMA - MT",
+        },
     ]
 
 with st.expander("➕ Adicionar Novo Evento", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
         novo_nome = st.text_input("Nome", value="ENSAIO LOCAL")
-        # ATENÇÃO: O índice 0 agora é Domingo, igual ao cálculo
         novo_dia = st.selectbox("Dia da Semana", options=[0,1,2,3,4,5,6], format_func=lambda x: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][x], index=5)
         novo_interc = st.selectbox("Repetição", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
     with col2:
