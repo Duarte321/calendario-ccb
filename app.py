@@ -204,4 +204,47 @@ with st.expander("➕ Adicionar Novo Evento", expanded=True):
             "interc": novo_interc
         }
         st.session_state['eventos'].append(item)
-        st.success("✅ Evento
+        st.success("✅ Evento Adicionado!")
+
+st.subheader(f"📋 Lista de Eventos ({len(st.session_state['eventos'])})")
+
+for i, evt in enumerate(st.session_state['eventos']):
+    dias_nomes = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+    dia_desc = dias_nomes[int(evt['dia_sem'])]
+    
+    col_a, col_b, col_c = st.columns([4, 2, 1])
+    with col_a:
+        st.markdown(f"**{evt['nome']}** - {evt['local']}")
+        st.caption(f"{evt['hora']}")
+    with col_b:
+        st.text(f"{evt['semana']}ª {dia_desc}")
+        st.caption(evt['interc'])
+    with col_c:
+        if st.button("🗑️", key=f"del_{i}"):
+            st.session_state['eventos'].pop(i)
+            st.rerun()
+    st.divider()
+
+st.header("🚀 Gerar Arquivo")
+
+col_excel, col_pdf = st.columns(2)
+
+with col_excel:
+    if st.button("📊 Gerar Excel"):
+        arquivo_excel = gerar_excel_buffer(ano_escolhido, st.session_state['eventos'], logo_data)
+        st.download_button(
+            label="⬇️ BAIXAR EXCEL",
+            data=arquivo_excel,
+            file_name=f"Calendario_CCB_{ano_escolhido}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+with col_pdf:
+    if st.button("📄 Gerar PDF"):
+        arquivo_pdf = gerar_pdf_buffer(ano_escolhido, st.session_state['eventos'])
+        st.download_button(
+            label="⬇️ BAIXAR PDF",
+            data=arquivo_pdf,
+            file_name=f"Calendario_CCB_{ano_escolhido}.pdf",
+            mime="application/pdf",
+        )
