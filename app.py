@@ -71,7 +71,6 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
         ws.merge_range(LINHA, 1, LINHA, 5, NOMES_MESES[mes], fmt_mes_nome)
         ws.set_row(LINHA, 40)
 
-        # LOGO
         if uploaded_logo is not None:
             ws.insert_image(LINHA, 6, "logo.jpg", {'image_data': uploaded_logo, 'x_scale': 0.25, 'y_scale': 0.25, 'x_offset': 5, 'y_offset': 2, 'positioning': 2})
         else:
@@ -106,102 +105,116 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
     return output
 
 def gerar_pdf_buffer(ano, lista_eventos):
-    pdf = FPDF(orientation='P', unit='mm', format='A4')
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf = FPDF(orientation='L', unit='mm', format='A4')
+    pdf.set_auto_page_break(auto=True, margin=10)
     
     dados = calcular_eventos(ano, lista_eventos)
+    pdf.set_font("Helvetica", size=10)
     
     for mes in range(1, 13):
         pdf.add_page()
-        pdf.set_font("Arial", style="B", size=16)
         
-        # Remove acentos do título
+        pdf.set_font("Helvetica", style="B", size=18)
+        pdf.set_text_color(31, 78, 95)
         mes_nome = NOMES_MESES[mes].upper().replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O").replace("Ú", "U").replace("Ã", "A").replace("Õ", "O").replace("Ç", "C")
-        pdf.cell(0, 12, f"{mes_nome} - {ano}", align="C", ln=1, border=0)
-        pdf.ln(8)
-        
-        # Lista eventos do mês
-        pdf.set_font("Arial", size=10)
-        encontrou_evento = False
-        
-        for dia in range(1, 32):
-            chave = f"{ano}-{mes}-{dia}"
-            if chave in dados:
-                encontrou_evento = True
-                eventos_dia = dados[chave]
-                texto_evento = f"Dia {dia}:\n"
-                for ev in eventos_dia:
-                    # Remove acentos dos eventos
-                    ev_limpo = ev.replace("Á", "A").replace("á", "a").replace("É", "E").replace("é", "e").replace("Í", "I").replace("í", "i").replace("Ó", "O").replace("ó", "o").replace("Ú", "U").replace("ú", "u").replace("Ã", "A").replace("ã", "a").replace("Õ", "O").replace("õ", "o").replace("Ç", "C").replace("ç", "c")
-                    texto_evento += f"  - {ev_limpo}\n"
-                
-                pdf.set_text_color(0, 0, 0)
-                pdf.set_font("Arial", size=9)
-                pdf.multi_cell(0, 6, texto_evento)
-                pdf.ln(2)
-        
-        if not encontrou_evento:
-            pdf.cell(0, 10, "Nenhum evento neste mes", ln=1)
-        
+        pdf.cell(0, 15, f"{mes_nome} {ano}", align="C", ln=1)
         pdf.ln(5)
-    
+        
+        pdf.set_font("Helvetica", style="B", size=10)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_fill_color(31, 78, 95)
+        
+        dias_semana_abr = ["SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA", "SABADO", "DOMINGO"]
+        largura_coluna = (pdf.w - 20) / 7
+        altura_header = 8
+        
+        for dia_sem in dias_semana_abr:
+            pdf.cell(largura_coluna, altura_header, dia_sem, border=1, align="C", fill=True)
+        pdf.ln()
+        
+        calendar.setfirstweekday(calendar.MONDAY)
+        cal = calendar.monthcalendar(ano, mes)
+        
+        pdf.set_font("Helvetica", size=8)
+        pdf.set_text_color(0, 0, 0)
+        
+        altura_dia = 25
+        
+        for semana in cal:
+            for idx, dia in enumerate(semana):
+                chave = f"{ano}-{mes}-{dia}"
+                if dia == 0:
+                    pdf.set_fill_color(240, 240, 240)
+                    pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
+                elif chave in dados:
+                    pdf.set_fill_color(255, 255, 0)
+                    pdf.multi_cell(largura_coluna, altura_dia, f"{dia}", border=1, align="L", fill=True)
+                else:
+                    pdf.set_fill_color(255, 255, 255)
+                    pdf.cell(largura_coluna, altura_dia, f"{dia}", border=1, align="L", fill=False)
+            pdf.ln()
+
+        pdf.ln(5)
+        pdf.set_font("Helvetica", style="B", size=10)
+        pdf.set_text_color(31, 78, 95)
+        pdf.cell(0, 8, "EVENTOS DO MES:", ln=1)
+        
+        pdf.set_font("Helvetica", size=9)
+        pdf.set_text_color(0, 0, 0)
+        
+        eventos_encontrados = False
+        for dia_evt in sorted([int(k.split('-')[2]) for k in dados.keys() if k.startswith(f"{ano}-{mes}")]):
+            chave = f"{ano}-{mes}-{dia_evt}"
+            if chave in dados:
+                eventos_encontrados = True
+                for ev in dados[chave]:
+                    ev_limpo = ev.replace("\n", " - ").encode('latin-1', 'replace').decode('latin-1')
+                    pdf.multi_cell(0, 5, f"Dia {dia_evt}: {ev_limpo}")
+        
+        if not eventos_encontrados:
+            pdf.cell(0, 5, "Nenhum evento neste mes.", ln=1)
+            
     return bytes(pdf.output())
 
 # ==========================================
 # 2. INTERFACE DO APP (STREAMLIT)
 # ==========================================
 st.set_page_config(page_title="Gerador CCB", page_icon="📅")
-
 st.title("📅 Gerador de Calendário CCB")
 st.write("Configure os eventos e gere sua planilha Excel ou PDF prontos.")
 
-# --- BARRA LATERAL (Configurações) ---
 with st.sidebar:
     st.header("⚙️ Configuração")
-    ano_escolhido = st.number_input("Ano do Calendário", value=2026, step=1)
+    ano_escolhido = st.number_input("Ano do Calendário", value=datetime.date.today().year + 1, step=1)
     uploaded_file = st.file_uploader("Escolher Logo (Opcional)", type=['jpg', 'png'])
-    
-    logo_data = None
-    if uploaded_file is not None:
-        logo_data = uploaded_file.getvalue()
+    logo_data = uploaded_file.getvalue() if uploaded_file else None
 
-# --- GERENCIADOR DE ESTADO ---
 if 'eventos' not in st.session_state:
     st.session_state['eventos'] = [
-        {"nome": "ENSAIO COM CULTO", "semana": "3", "dia_sem": "3", "interc": "Meses Ímpares", "hora": "19:30 HRS", "local": "ENTRE RIOS"},
+        {"nome": "ENSAIO COM CULTO", "semana": "3", "dia_sem": "6", "interc": "Meses Ímpares", "hora": "19:30 HRS", "local": "ENTRE RIOS"},
         {"nome": "ENSAIO LOCAL", "semana": "1", "dia_sem": "5", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "SÃO PEDRO DA CIPA"},
     ]
 
-# --- FORMULÁRIO DE ADIÇÃO ---
 with st.expander("➕ Adicionar Novo Evento", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
         novo_nome = st.text_input("Nome", value="ENSAIO LOCAL")
-        novo_dia = st.selectbox("Dia da Semana", options=[0,1,2,3,4,5,6], format_func=lambda x: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"][x], index=5)
+        novo_dia = st.selectbox("Dia da Semana", options=range(7), format_func=lambda x: DIAS_SEMANA_PT[x-1 if x > 0 else 6], index=5)
         novo_interc = st.selectbox("Repetição", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
     with col2:
         novo_local = st.text_input("Local", placeholder="Ex: Jaciara")
-        novo_semana = st.selectbox("Semana do Mês", options=["1", "2", "3", "4", "5"], index=0)
+        novo_semana = st.selectbox("Semana do Mês", options=[str(i) for i in range(1, 6)], index=0)
         novo_hora = st.text_input("Hora", value="19:30 HRS")
     
     if st.button("Adicionar Evento"):
-        item = {
-            "nome": novo_nome.upper(),
-            "local": novo_local.upper(),
-            "dia_sem": str(novo_dia),
-            "semana": novo_semana,
-            "hora": novo_hora.upper(),
-            "interc": novo_interc
-        }
+        item = {"nome": novo_nome.upper(), "local": novo_local.upper(), "dia_sem": str(novo_dia), "semana": novo_semana, "hora": novo_hora.upper(), "interc": novo_interc}
         st.session_state['eventos'].append(item)
         st.success("✅ Evento Adicionado!")
 
-# --- LISTA DE EVENTOS ---
 st.subheader(f"📋 Lista de Eventos ({len(st.session_state['eventos'])})")
-
 for i, evt in enumerate(st.session_state['eventos']):
-    dias_nomes = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
-    dia_desc = dias_nomes[int(evt['dia_sem'])]
+    dias_nomes_curtos = ["SEG", "TER", "QUA", "QUI", "SEX", "SAB", "DOM"]
+    dia_desc = dias_nomes_curtos[int(evt['dia_sem'])]
     
     col_a, col_b, col_c = st.columns([4, 2, 1])
     with col_a:
@@ -216,27 +229,13 @@ for i, evt in enumerate(st.session_state['eventos']):
             st.rerun()
     st.divider()
 
-# --- BOTÕES DE DOWNLOAD ---
 st.header("🚀 Gerar Arquivo")
-
 col_excel, col_pdf = st.columns(2)
-
 with col_excel:
     if st.button("📊 Gerar Excel"):
         arquivo_excel = gerar_excel_buffer(ano_escolhido, st.session_state['eventos'], logo_data)
-        st.download_button(
-            label="⬇️ BAIXAR EXCEL",
-            data=arquivo_excel,
-            file_name=f"Calendario_CCB_{ano_escolhido}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
+        st.download_button(label="⬇️ BAIXAR EXCEL", data=arquivo_excel, file_name=f"Calendario_CCB_{ano_escolhido}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 with col_pdf:
     if st.button("📄 Gerar PDF"):
         arquivo_pdf = gerar_pdf_buffer(ano_escolhido, st.session_state['eventos'])
-        st.download_button(
-            label="⬇️ BAIXAR PDF",
-            data=arquivo_pdf,
-            file_name=f"Calendario_CCB_{ano_escolhido}.pdf",
-            mime="application/pdf",
-        )
+        st.download_button(label="⬇️ BAIXAR PDF", data=arquivo_pdf, file_name=f"Calendario_CCB_{ano_escolhido}.pdf", mime="application/pdf")
