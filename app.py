@@ -106,8 +106,7 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
 
 def gerar_pdf_buffer(ano, lista_eventos):
     pdf = FPDF(orientation='L', unit='mm', format='A4')
-    pdf.set_auto_page_break(auto=True, margin=10)
-    pdf.set_font("Helvetica", size=10)
+    pdf.set_auto_page_break(auto=False) # Desliga quebra auto para controlar grade
     
     dados = calcular_eventos(ano, lista_eventos)
     
@@ -118,17 +117,17 @@ def gerar_pdf_buffer(ano, lista_eventos):
         pdf.set_font("Helvetica", style="B", size=18)
         pdf.set_text_color(31, 78, 95)
         mes_nome = NOMES_MESES[mes].upper().replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O").replace("Ú", "U").replace("Ã", "A").replace("Õ", "O").replace("Ç", "C")
-        pdf.cell(0, 15, f"{mes_nome} {ano}", align="C", ln=1)
-        pdf.ln(3)
+        pdf.cell(0, 12, f"{mes_nome} {ano}", align="C", ln=1)
+        pdf.ln(2)
         
         # CABEÇALHO DIAS DA SEMANA
-        pdf.set_font("Helvetica", style="B", size=9)
+        pdf.set_font("Helvetica", style="B", size=8)
         pdf.set_text_color(255, 255, 255)
         pdf.set_fill_color(31, 78, 95)
         
         dias_semana_abr = ["SEGUNDA", "TERCA", "QUARTA", "QUINTA", "SEXTA", "SABADO", "DOMINGO"]
         largura_coluna = (pdf.w - 20) / 7
-        altura_header = 7
+        altura_header = 6
         
         for dia_sem in dias_semana_abr:
             pdf.cell(largura_coluna, altura_header, dia_sem, border=1, align="C", fill=True)
@@ -138,30 +137,57 @@ def gerar_pdf_buffer(ano, lista_eventos):
         calendar.setfirstweekday(calendar.MONDAY)
         cal = calendar.monthcalendar(ano, mes)
         
-        pdf.set_font("Helvetica", style="B", size=12)
-        pdf.set_text_color(0, 0, 0)
-        altura_dia = 30
+        altura_dia = 30 # Altura da celula
         
         for semana in cal:
+            # Salva posição Y inicial da linha da semana
+            y_inicial = pdf.get_y()
+            x_inicial = pdf.get_x()
+            
+            # Loop 1: Desenha os fundos e bordas
             for idx, dia in enumerate(semana):
+                pdf.set_xy(x_inicial + (idx * largura_coluna), y_inicial)
+                
                 if dia == 0:
-                    # Célula vazia
-                    pdf.set_fill_color(200, 200, 200)
+                    pdf.set_fill_color(230, 230, 230)
                     pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
                 else:
                     chave = f"{ano}-{mes}-{dia}"
                     if chave in dados:
-                        # Dia com evento - fundo amarelo
-                        pdf.set_fill_color(255, 255, 0)
-                        pdf.cell(largura_coluna, altura_dia, str(dia), border=1, align="C", fill=True)
+                        pdf.set_fill_color(255, 255, 0) # Amarelo
+                        pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
                     else:
-                        # Dia normal - fundo branco
-                        pdf.set_fill_color(255, 255, 255)
-                        pdf.cell(largura_coluna, altura_dia, str(dia), border=1, align="C", fill=False)
-            pdf.ln()
-        
-        pdf.ln(8)
-    
+                        pdf.set_fill_color(255, 255, 255) # Branco
+                        pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
+
+            # Loop 2: Escreve os textos por cima
+            for idx, dia in enumerate(semana):
+                if dia != 0:
+                    pdf.set_xy(x_inicial + (idx * largura_coluna), y_inicial)
+                    
+                    # Número do Dia (Canto esquerdo)
+                    pdf.set_font("Helvetica", style="B", size=10)
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.cell(largura_coluna, 6, str(dia), border=0, align="L")
+                    
+                    # Texto do Evento (Se houver)
+                    chave = f"{ano}-{mes}-{dia}"
+                    if chave in dados:
+                        # Pega o texto do evento
+                        texto_evento = "\n".join(dados[chave])
+                        # Remove acentos
+                        texto_limpo = texto_evento.replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O").replace("Ú", "U").replace("Ã", "A").replace("Õ", "O").replace("Ç", "C")
+                        
+                        # Move cursor para baixo do número
+                        pdf.set_xy(x_inicial + (idx * largura_coluna) + 1, y_inicial + 6)
+                        pdf.set_font("Helvetica", size=7) # Letra menor para caber
+                        
+                        # Multi cell para quebrar linha dentro da caixa
+                        pdf.multi_cell(largura_coluna - 2, 3, texto_limpo, align="C")
+
+            # Avança para próxima semana
+            pdf.set_xy(x_inicial, y_inicial + altura_dia)
+            
     return bytes(pdf.output())
 
 # ==========================================
