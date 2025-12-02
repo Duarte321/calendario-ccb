@@ -6,14 +6,16 @@ import datetime
 from fpdf import FPDF
 
 # ==========================================
-# 1. LÓGICA DO CALENDÁRIO
+# 1. LÓGICA DO CALENDÁRIO (CORRIGIDA)
 # ==========================================
 NOMES_MESES = {1: "janeiro", 2: "fevereiro", 3: "março", 4: "abril", 5: "maio", 6: "junho", 7: "julho", 8: "agosto", 9: "setembro", 10: "outubro", 11: "novembro", 12: "dezembro"}
 DIAS_SEMANA_PT = ["DOMINGO", "SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SÁBADO"]
 
 def calcular_eventos(ano, lista_eventos):
     agenda = {}
-    calendar.setfirstweekday(calendar.MONDAY)
+    # CORREÇÃO AQUI: A semana agora começa no Domingo (SUNDAY) para alinhar com o menu
+    calendar.setfirstweekday(calendar.SUNDAY) 
+    
     for mes in range(1, 13):
         cal_matrix = calendar.monthcalendar(ano, mes)
         for evt in lista_eventos:
@@ -27,7 +29,8 @@ def calcular_eventos(ano, lista_eventos):
             if deve_marcar:
                 contador = 0
                 dia_encontrado = None
-                dia_alvo_idx = int(evt["dia_sem"])
+                # O índice agora bate: 0=Domingo ... 6=Sábado
+                dia_alvo_idx = int(evt["dia_sem"]) 
                 semana_alvo = int(evt["semana"])
                 
                 for semana in cal_matrix:
@@ -62,6 +65,7 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
     fmt_evento_bg = wb.add_format({'valign': 'center', 'align': 'center', 'border': 1, 'border_color': COR_CINZA_LINHA, 'bg_color': COR_AMARELO_NEON, 'text_wrap': True, 'font_size': 10, 'bold': True})
     fmt_logo_celula = wb.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
 
+    # Garante cálculo correto também no Excel
     dados = calcular_eventos(ano, lista_eventos)
     calendar.setfirstweekday(calendar.SUNDAY)
 
@@ -105,7 +109,7 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
     return output
 
 def gerar_pdf_buffer(ano, lista_eventos):
-    pdf = FPDF(orientation='P', unit='mm', format='A4')  # Portrait
+    pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=False, margin=8)
     
     dados = calcular_eventos(ano, lista_eventos)
@@ -118,16 +122,14 @@ def gerar_pdf_buffer(ano, lista_eventos):
         pdf.set_text_color(255, 255, 255)
         pdf.set_fill_color(31, 78, 95)
         
-        # Caixa ano
         pdf.cell(25, 12, str(ano), border=1, align="C", fill=True)
         
-        # Caixa mês
         mes_nome = NOMES_MESES[mes].lower()
         pdf.cell(0, 12, mes_nome, border=1, align="C", fill=True, ln=1)
         
         pdf.ln(3)
         
-        # CABEÇALHO DIAS DA SEMANA (Começando DOMINGO)
+        # CABEÇALHO DIAS DA SEMANA
         pdf.set_font("Helvetica", style="B", size=8)
         pdf.set_text_color(255, 255, 255)
         pdf.set_fill_color(31, 78, 95)
@@ -140,11 +142,11 @@ def gerar_pdf_buffer(ano, lista_eventos):
             pdf.cell(largura_coluna, altura_header, dia_sem, border=1, align="L", fill=True)
         pdf.ln()
         
-        # CALENDÁRIO EM GRADE (Começando no DOMINGO)
-        calendar.setfirstweekday(calendar.SUNDAY)  # Começa no domingo
+        # CALENDÁRIO EM GRADE
+        calendar.setfirstweekday(calendar.SUNDAY)
         cal = calendar.monthcalendar(ano, mes)
         
-        altura_dia = 28  # Altura de cada célula do dia
+        altura_dia = 28
         
         for semana in cal:
             y_inicial = pdf.get_y()
@@ -166,17 +168,17 @@ def gerar_pdf_buffer(ano, lista_eventos):
                         pdf.set_fill_color(255, 255, 255) # Branco
                         pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
             
-            # Loop 2: Escreve os textos por cima
+            # Loop 2: Escreve os textos
             for idx, dia in enumerate(semana):
                 if dia != 0:
                     pdf.set_xy(x_inicial + (idx * largura_coluna) + 1, y_inicial + 1)
                     
-                    # Número do Dia (Canto superior esquerdo)
+                    # Número do Dia
                     pdf.set_font("Helvetica", style="B", size=11)
                     pdf.set_text_color(0, 0, 0)
                     pdf.cell(6, 5, str(dia), border=0, align="L")
                     
-                    # Texto do Evento (Se houver)
+                    # Texto do Evento
                     chave = f"{ano}-{mes}-{dia}"
                     if chave in dados:
                         texto_evento = "\n".join(dados[chave])
@@ -188,7 +190,6 @@ def gerar_pdf_buffer(ano, lista_eventos):
             
             pdf.set_xy(x_inicial, y_inicial + altura_dia)
         
-        # Linha de anotações no final
         pdf.ln(3)
         pdf.set_font("Helvetica", style="", size=10)
         pdf.set_text_color(0, 0, 0)
@@ -220,6 +221,7 @@ with st.expander("➕ Adicionar Novo Evento", expanded=True):
     col1, col2 = st.columns(2)
     with col1:
         novo_nome = st.text_input("Nome", value="ENSAIO LOCAL")
+        # ATENÇÃO: O índice 0 agora é Domingo, igual ao cálculo
         novo_dia = st.selectbox("Dia da Semana", options=[0,1,2,3,4,5,6], format_func=lambda x: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][x], index=5)
         novo_interc = st.selectbox("Repetição", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
     with col2:
