@@ -136,14 +136,14 @@ def gerar_pdf_buffer(ano, lista_eventos):
         altura_header = 8
         
         for dia_sem in dias_semana_pt:
-            pdf.cell(largura_coluna, altura_header, dia_sem, border=1, align="L", fill=True)
+            pdf.cell(largura_coluna, altura_header, dia_sem, border=1, align="C", fill=True)
         pdf.ln()
         
         # CALENDÁRIO EM GRADE
         calendar.setfirstweekday(calendar.SUNDAY)
         cal = calendar.monthcalendar(ano, mes)
         
-        altura_dia = 28
+        altura_dia = 32
         
         for semana in cal:
             y_inicial = pdf.get_y()
@@ -168,20 +168,23 @@ def gerar_pdf_buffer(ano, lista_eventos):
             # Loop 2: Escreve os textos
             for idx, dia in enumerate(semana):
                 if dia != 0:
-                    pdf.set_xy(x_inicial + (idx * largura_coluna) + 1, y_inicial + 1)
+                    pdf.set_xy(x_inicial + (idx * largura_coluna), y_inicial)
                     
+                    # Número do Dia
                     pdf.set_font("Helvetica", style="B", size=11)
                     pdf.set_text_color(0, 0, 0)
+                    pdf.set_xy(x_inicial + (idx * largura_coluna) + 1, y_inicial + 1)
                     pdf.cell(6, 5, str(dia), border=0, align="L")
                     
+                    # Texto do Evento
                     chave = f"{ano}-{mes}-{dia}"
                     if chave in dados:
                         texto_evento = "\n".join(dados[chave])
                         texto_limpo = texto_evento.replace("Á", "A").replace("á", "a").replace("É", "E").replace("é", "e").replace("Í", "I").replace("í", "i").replace("Ó", "O").replace("ó", "o").replace("Ú", "U").replace("ú", "u").replace("Ã", "A").replace("ã", "a").replace("Õ", "O").replace("õ", "o").replace("Ç", "C").replace("ç", "c")
                         
-                        pdf.set_xy(x_inicial + (idx * largura_coluna) + 1, y_inicial + 6)
-                        pdf.set_font("Helvetica", size=7)
-                        pdf.multi_cell(largura_coluna - 2, 3, texto_limpo, align="L")
+                        pdf.set_xy(x_inicial + (idx * largura_coluna), y_inicial + 7)
+                        pdf.set_font("Helvetica", style="B", size=8)
+                        pdf.multi_cell(largura_coluna, 3.5, texto_limpo, align="C")
             
             pdf.set_xy(x_inicial, y_inicial + altura_dia)
         
