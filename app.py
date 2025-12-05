@@ -41,7 +41,6 @@ def calcular_eventos(ano, lista_eventos):
                             break
                 if dia_encontrado:
                     chave = f"{ano}-{mes}-{dia_encontrado}"
-                    # Guardamos um dicionário com dados separados para facilitar a estilização
                     evento_dados = {
                         "titulo": evt['nome'],
                         "local": evt['local'],
@@ -52,7 +51,6 @@ def calcular_eventos(ano, lista_eventos):
     return agenda
 
 def montar_agenda_ordenada(ano, lista_eventos):
-    """ Gera uma lista ordenada para visualização """
     dados = calcular_eventos(ano, lista_eventos)
     lista_final = []
     
@@ -196,18 +194,15 @@ def gerar_pdf_buffer(ano, lista_eventos):
 # ==========================================
 # 2. INTERFACE DO APP (STREAMLIT)
 # ==========================================
-st.set_page_config(page_title="Gerador CCB", page_icon="📅", layout="wide")
+st.set_page_config(page_title="Agenda CCB Jaciara", page_icon="📅", layout="wide")
 
-# Custom CSS Elegante com Efeito Hover (Zoom + Sombra)
+# Custom CSS Elegante com Efeito Hover
 st.markdown("""
 <style>
-    /* Fundo geral mais clean */
     .block-container {
         padding-top: 2rem;
         padding-bottom: 5rem;
     }
-
-    /* Cartão com design moderno e transição suave */
     .agenda-card {
         background-color: #ffffff;
         border-left: 5px solid #1F4E5F;
@@ -215,18 +210,14 @@ st.markdown("""
         border-radius: 8px;
         margin-bottom: 14px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        transition: all 0.3s ease; /* Animação suave */
+        transition: all 0.3s ease;
         cursor: default;
     }
-
-    /* Efeito Hover (Ao passar o mouse ou tocar) */
     .agenda-card:hover {
-        transform: scale(1.02); /* Zoom leve (2%) */
-        box-shadow: 0 8px 15px rgba(0,0,0,0.15); /* Sombra mais forte */
-        border-left: 5px solid #00B4D8; /* Muda a cor da borda lateral */
+        transform: scale(1.02);
+        box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        border-left: 5px solid #00B4D8;
     }
-
-    /* Dia grande em destaque */
     .agenda-dia {
         font-size: 28px;
         font-weight: 800;
@@ -235,8 +226,6 @@ st.markdown("""
         line-height: 1;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-
-    /* Dia da semana */
     .agenda-sem {
         font-size: 11px;
         color: #888;
@@ -245,16 +234,12 @@ st.markdown("""
         letter-spacing: 1px;
         margin-top: 2px;
     }
-
-    /* Título do evento */
     .agenda-titulo {
         font-weight: 700;
         font-size: 16px;
         color: #222;
         margin-bottom: 4px;
     }
-
-    /* Local */
     .agenda-local {
         color: #555;
         font-size: 14px;
@@ -262,8 +247,6 @@ st.markdown("""
         align-items: center;
         gap: 5px;
     }
-
-    /* Horário em destaque */
     .agenda-hora {
         color: #1F4E5F;
         font-weight: 600;
@@ -274,8 +257,6 @@ st.markdown("""
         padding: 2px 8px;
         border-radius: 12px;
     }
-
-    /* Cabeçalho do Mês com gradiente sutil */
     .mes-header {
         color: white;
         background: linear-gradient(90deg, #1F4E5F 0%, #2c6e85 100%);
@@ -293,7 +274,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📅 Gerador de Calendário CCB")
+st.title("📅 Ensaios Locais da Microrregião Jaciara - MT")
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -366,8 +347,7 @@ if modo == "⚙️ Configuração / Gerar Arquivos":
             st.download_button(label="⬇️ BAIXAR PDF", data=arquivo_pdf, file_name=f"Calendario_CCB_{ano_escolhido}.pdf", mime="application/pdf")
 
 else:
-    # --- MODO AGENDA (ESTILIZADO) ---
-    st.header(f"🗓️ Agenda Completa de {ano_escolhido}")
+    st.header(f"🗓️ Agenda de Ensaios {ano_escolhido} - Microrregião Jaciara - MT")
     agenda = montar_agenda_ordenada(ano_escolhido, st.session_state['eventos'])
     
     if not agenda:
