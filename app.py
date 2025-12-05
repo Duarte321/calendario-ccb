@@ -196,7 +196,7 @@ def gerar_pdf_buffer(ano, lista_eventos):
 # ==========================================
 st.set_page_config(page_title="Agenda CCB Jaciara", page_icon="📅", layout="wide")
 
-# Custom CSS Elegante com Efeito Hover
+# Custom CSS
 st.markdown("""
 <style>
     .block-container {
@@ -276,9 +276,9 @@ st.markdown("""
 
 st.title("📅 Ensaios Locais da Microrregião Jaciara - MT")
 
-# --- SIDEBAR ---
+# --- SIDEBAR (Configurações visíveis para Admin) ---
 with st.sidebar:
-    st.header("⚙️ Configuração")
+    st.header("Painel")
     ano_escolhido = st.number_input("Ano do Calendário", value=date.today().year + 1, step=1)
     uploaded_file = st.file_uploader("Escolher Logo (Opcional)", type=['jpg', 'png'])
     logo_data = uploaded_file.getvalue() if uploaded_file else None
@@ -298,56 +298,69 @@ if 'eventos' not in st.session_state:
         {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "6", "interc": "Meses Pares", "hora": "19:30 HRS", "local": "DISTRITO DE CELMA - MT"},
     ]
 
-modo = st.radio("Modo de Visualização:", ["⚙️ Configuração / Gerar Arquivos", "🗓️ Visualizar Agenda Completa"], horizontal=True)
+# --- SELETOR DE MODO COM SENHA ---
+modo = st.radio("Modo de Visualização:", ["🗓️ Visualizar Agenda Completa", "🔐 Configuração (Admin)"], horizontal=True)
 
 st.divider()
 
-if modo == "⚙️ Configuração / Gerar Arquivos":
-    with st.expander("➕ Adicionar Novo Evento", expanded=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            novo_nome = st.text_input("Nome", value="ENSAIO LOCAL")
-            novo_dia = st.selectbox("Dia da Semana", options=[0,1,2,3,4,5,6], format_func=lambda x: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][x], index=5)
-            novo_interc = st.selectbox("Repetição", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
-        with col2:
-            novo_local = st.text_input("Local", placeholder="Ex: Jaciara")
-            novo_semana = st.selectbox("Semana do Mês", options=["1", "2", "3", "4", "5"], index=0)
-            novo_hora = st.text_input("Hora", value="19:30 HRS")
+if modo == "🔐 Configuração (Admin)":
+    # Login Simples
+    senha = st.text_input("Digite a senha de administrador:", type="password")
+    
+    if senha == "ccb123":  # <-- SENHA DO ADMIN AQUI
+        st.success("Acesso Liberado!")
         
-        if st.button("Adicionar Evento"):
-            item = {"nome": novo_nome.upper(), "local": novo_local.upper(), "dia_sem": str(novo_dia), "semana": novo_semana, "hora": novo_hora.upper(), "interc": novo_interc}
-            st.session_state['eventos'].append(item)
-            st.success("✅ Evento Adicionado!")
+        with st.expander("➕ Adicionar Novo Evento", expanded=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                novo_nome = st.text_input("Nome", value="ENSAIO LOCAL")
+                novo_dia = st.selectbox("Dia da Semana", options=[0,1,2,3,4,5,6], format_func=lambda x: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][x], index=5)
+                novo_interc = st.selectbox("Repetição", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
+            with col2:
+                novo_local = st.text_input("Local", placeholder="Ex: Jaciara")
+                novo_semana = st.selectbox("Semana do Mês", options=["1", "2", "3", "4", "5"], index=0)
+                novo_hora = st.text_input("Hora", value="19:30 HRS")
+            
+            if st.button("Adicionar Evento"):
+                item = {"nome": novo_nome.upper(), "local": novo_local.upper(), "dia_sem": str(novo_dia), "semana": novo_semana, "hora": novo_hora.upper(), "interc": novo_interc}
+                st.session_state['eventos'].append(item)
+                st.success("✅ Evento Adicionado!")
 
-    st.subheader(f"📋 Lista de Eventos Cadastrados ({len(st.session_state['eventos'])})")
-    for i, evt in enumerate(st.session_state['eventos']):
-        dia_desc = DIAS_SEMANA_CURTO[int(evt['dia_sem'])]
-        with st.container():
-            col_a, col_b, col_c = st.columns([5, 2, 1])
-            with col_a:
-                st.markdown(f"**{evt['nome']}**")
-                st.text(f"{evt['local']} - {evt['hora']}")
-            with col_b:
-                st.info(f"{evt['semana']}ª {dia_desc} \n({evt['interc']})")
-            with col_c:
-                if st.button("🗑️", key=f"del_{i}"):
-                    st.session_state['eventos'].pop(i)
-                    st.rerun()
-        st.divider()
+        st.subheader(f"📋 Lista de Eventos Cadastrados ({len(st.session_state['eventos'])})")
+        for i, evt in enumerate(st.session_state['eventos']):
+            dia_desc = DIAS_SEMANA_CURTO[int(evt['dia_sem'])]
+            with st.container():
+                col_a, col_b, col_c = st.columns([5, 2, 1])
+                with col_a:
+                    st.markdown(f"**{evt['nome']}**")
+                    st.text(f"{evt['local']} - {evt['hora']}")
+                with col_b:
+                    st.info(f"{evt['semana']}ª {dia_desc} \n({evt['interc']})")
+                with col_c:
+                    if st.button("🗑️", key=f"del_{i}"):
+                        st.session_state['eventos'].pop(i)
+                        st.rerun()
+            st.divider()
 
-    st.header("🚀 Gerar Arquivos Finais")
-    col_excel, col_pdf = st.columns(2)
-    with col_excel:
-        if st.button("📊 Gerar Excel"):
-            arquivo_excel = gerar_excel_buffer(ano_escolhido, st.session_state['eventos'], logo_data)
-            st.download_button(label="⬇️ BAIXAR EXCEL", data=arquivo_excel, file_name=f"Calendario_CCB_{ano_escolhido}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    with col_pdf:
-        if st.button("📄 Gerar PDF"):
-            arquivo_pdf = gerar_pdf_buffer(ano_escolhido, st.session_state['eventos'])
-            st.download_button(label="⬇️ BAIXAR PDF", data=arquivo_pdf, file_name=f"Calendario_CCB_{ano_escolhido}.pdf", mime="application/pdf")
+        st.header("🚀 Gerar Arquivos Finais")
+        col_excel, col_pdf = st.columns(2)
+        with col_excel:
+            if st.button("📊 Gerar Excel"):
+                arquivo_excel = gerar_excel_buffer(ano_escolhido, st.session_state['eventos'], logo_data)
+                st.download_button(label="⬇️ BAIXAR EXCEL", data=arquivo_excel, file_name=f"Calendario_CCB_{ano_escolhido}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        with col_pdf:
+            if st.button("📄 Gerar PDF"):
+                arquivo_pdf = gerar_pdf_buffer(ano_escolhido, st.session_state['eventos'])
+                st.download_button(label="⬇️ BAIXAR PDF", data=arquivo_pdf, file_name=f"Calendario_CCB_{ano_escolhido}.pdf", mime="application/pdf")
+    elif senha:
+        st.error("Senha incorreta!")
+    else:
+        st.info("Por favor, digite a senha para acessar as configurações.")
 
 else:
-    st.header(f"🗓️ Agenda de Ensaios {ano_escolhido} - Microrregião Jaciara - MT")
+    # --- MODO AGENDA (PÚBLICO) ---
+    # Força o seletor para o topo, e a agenda aparece por padrão
+    st.header(f"🗓️ Agenda de Ensaios {ano_escolhido}")
     agenda = montar_agenda_ordenada(ano_escolhido, st.session_state['eventos'])
     
     if not agenda:
