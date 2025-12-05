@@ -64,127 +64,153 @@ def gerar_link_google(dt, evt_data):
     local = quote(evt_data['local'])
     return f"https://calendar.google.com/calendar/r/eventedit?text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB"
 
-def gerar_excel_buffer(ano, lista_eventos, uploaded_logo=None):
+# ===== FUNÇÃO EXCEL VISUAL (CALENDÁRIO) =====
+def gerar_excel_calendario(ano, lista_eventos, uploaded_logo=None):
     output = BytesIO()
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
     
-    header_fmt = wb.add_format({'bold': True, 'bg_color': '#1F4E5F', 'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 'border': 1})
-    title_fmt = wb.add_format({'bold': True, 'font_size': 14, 'bg_color': '#EBF2F5', 'align': 'center', 'valign': 'vcenter', 'border': 1})
-    data_fmt = wb.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1})
-    center_fmt = wb.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
+    # Estilos
+    header_mes = wb.add_format({'bold': True, 'font_size': 16, 'bg_color': '#1F4E5F', 'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 'border': 1})
+    header_dias = wb.add_format({'bold': True, 'bg_color': '#EBF2F5', 'align': 'center', 'valign': 'vcenter', 'border': 1, 'font_size': 11})
+    cell_vazio = wb.add_format({'border': 1, 'align': 'left', 'valign': 'top', 'text_wrap': True})
+    cell_evento = wb.add_format({'border': 1, 'align': 'left', 'valign': 'top', 'bg_color': '#E8F4F8', 'text_wrap': True, 'font_size': 9})
+    cell_numero = wb.add_format({'bold': True, 'font_size': 10, 'border': 1, 'align': 'right', 'valign': 'top'})
     
     agenda = montar_agenda_ordenada(ano, lista_eventos)
     
+    # Dicionário de eventos por data
+    eventos_dict = {}
+    for dt, evt_data in agenda:
+        chave = f"{dt.year}-{dt.month}-{dt.day}"
+        if chave not in eventos_dict:
+            eventos_dict[chave] = []
+        eventos_dict[chave].append(evt_data)
+    
+    # Por mês
     for mes in range(1, 13):
         nome_mes = NOMES_MESES[mes]
-        ws = wb.add_worksheet(nome_mes)
-        ws.set_column('A:A', 12)
-        ws.set_column('B:B', 10)
-        ws.set_column('C:C', 30)
-        ws.set_column('D:D', 35)
-        ws.set_column('E:E', 12)
+        ws = wb.add_worksheet(f"{mes:02d} - {nome_mes}")
         
-        if uploaded_logo:
-            try:
-                img_data = BytesIO(uploaded_logo)
-                ws.insert_image('A1', 'logo.png', {'image_data': img_data, 'x_scale': 0.08, 'y_scale': 0.08})
-                ws.merge_range('A1:E2', f"AGENDA - {nome_mes} {ano}", title_fmt)
-                row_header = 2
-            except:
-                ws.merge_range('A1:E1', f"{nome_mes} {ano}", title_fmt)
-                row_header = 1
-        else:
-            ws.merge_range('A1:E1', f"{nome_mes} {ano}", title_fmt)
-            row_header = 1
+        # Configuração de colunas (largura para 7 dias)
+        for col in range(7):
+            ws.set_column(col, col, 22)
         
-        ws.write(row_header, 0, 'DATA', header_fmt)
-        ws.write(row_header, 1, 'DIA', header_fmt)
-        ws.write(row_header, 2, 'EVENTO', header_fmt)
-        ws.write(row_header, 3, 'LOCAL', header_fmt)
-        ws.write(row_header, 4, 'HORA', header_fmt)
+        # Título do mês
+        ws.merge_range('A1:G1', f"{nome_mes} {ano}", header_mes)
+        ws.set_row(0, 30)
         
-        linha = row_header + 1
-        for dt, evt_data in agenda:
-            if dt.month == mes and dt.year == ano:
-                ws.write(linha, 0, dt.strftime('%d/%m/%Y'), center_fmt)
-                ws.write(linha, 1, DIAS_SEMANA_CURTO[int(dt.strftime("%w"))], center_fmt)
-                ws.write(linha, 2, evt_data['titulo'], data_fmt)
-                ws.write(linha, 3, evt_data['local'], data_fmt)
-                ws.write(linha, 4, evt_data['hora'], center_fmt)
-                linha += 1
+        # Cabeçalho com dias da semana
+        for col, dia in enumerate(DIAS_SEMANA_CURTO):
+            ws.write(1, col, dia, header_dias)
+        ws.set_row(1, 20)
+        
+        # Cria matriz de calendário
+        cal_matrix = calendar.monthcalendar(ano, mes)
+        calendar.setfirstweekday(calendar.SUNDAY)
+        cal_matrix = calendar.monthcalendar(ano, mes)
+        
+        # Preenche o calendário
+        row = 2
+        for semana in cal_matrix:
+            ws.set_row(row, 80)
+            for col, dia in enumerate(semana):
+                if dia == 0:
+                    ws.write(row, col, '', cell_vazio)
+                else:
+                    chave = f"{ano}-{mes}-{dia}"
+                    texto = f"{dia}"
+                    
+                    if chave in eventos_dict:
+                        for evt in eventos_dict[chave]:
+                            texto += f"\n🎵 {evt['titulo']}"
+                            texto += f"\n📍 {evt['local']}"
+                            texto += f"\n🕒 {evt['hora']}"
+                    
+                    ws.write(row, col, texto, cell_evento if chave in eventos_dict else cell_vazio)
+            row += 1
     
     wb.close()
     output.seek(0)
     return output
 
-def gerar_pdf_buffer(ano, lista_eventos):
-    # 1. Configuração Segura (Margens e Tamanho)
-    pdf = FPDF(orientation='P', unit='mm', format='A4')
-    pdf.set_margins(10, 10, 10)
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
+# ===== FUNÇÃO PDF VISUAL (CALENDÁRIO) =====
+def gerar_pdf_calendario(ano, lista_eventos):
+    pdf = FPDF(orientation='L', unit='mm', format='A4')  # Landscape
     
-    # Título
-    pdf.set_font("Arial", "B", 20)
-    pdf.set_text_color(31, 78, 95)
-    pdf.cell(190, 15, f"CALENDARIO CCB JACIARA {ano}", 0, 1, 'C')
-    
-    pdf.set_font("Arial", "", 10)
-    pdf.set_text_color(0, 0, 0)
-    pdf.ln(5)
-    
+    # Dicionário de eventos por data
     agenda = montar_agenda_ordenada(ano, lista_eventos)
-    
-    mes_atual = 0
+    eventos_dict = {}
     for dt, evt_data in agenda:
-        if dt.month != mes_atual:
-            mes_atual = dt.month
-            pdf.ln(5)
-            
-            pdf.set_fill_color(235, 242, 245)
-            pdf.set_font("Arial", "B", 12)
-            pdf.set_text_color(31, 78, 95)
-            
-            nome_mes = NOMES_MESES[mes_atual]
-            try: nome_mes = nome_mes.encode('latin-1', 'ignore').decode('latin-1')
-            except: pass
-            
-            pdf.set_x(10)
-            pdf.cell(190, 8, f"  {nome_mes} {ano}", 0, 1, 'L', fill=True)
-            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-            pdf.ln(2)
-            pdf.set_font("Arial", "", 10)
-            pdf.set_text_color(0, 0, 0)
+        chave = f"{dt.year}-{dt.month}-{dt.day}"
+        if chave not in eventos_dict:
+            eventos_dict[chave] = []
+        eventos_dict[chave].append(evt_data)
+    
+    # Por mês
+    for mes in range(1, 13):
+        pdf.add_page()
         
-        try:
-            dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))].encode('latin-1', 'ignore').decode('latin-1')
-            titulo = evt_data['titulo'].encode('latin-1', 'ignore').decode('latin-1')
-            local = evt_data['local'].encode('latin-1', 'ignore').decode('latin-1')
-        except:
-            dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
-            titulo = evt_data['titulo']
-            local = evt_data['local']
-
-        texto = f"{dt.day:02d}/{dt.month:02d} ({dia_semana}) - {titulo} - {local} ({evt_data['hora']})"
+        # Título
+        pdf.set_font("Arial", "B", 24)
+        pdf.set_text_color(31, 78, 95)
+        nome_mes = NOMES_MESES[mes]
+        pdf.cell(0, 15, f"{nome_mes} {ano}", 0, 1, 'C')
+        pdf.ln(5)
         
-        pdf.set_x(10)
-        # Largura fixa de 190mm para evitar erro de quebra de linha
-        pdf.multi_cell(190, 6, texto, 0, 'L')
+        # Cabeçalho dos dias da semana
+        col_width = 40  # Largura de cada coluna (280mm / 7 cols ≈ 40mm)
+        row_height = 30
         
-        y_end = pdf.get_y()
-        pdf.set_draw_color(220, 220, 220)
-        pdf.line(10, y_end, 200, y_end)
-        pdf.set_draw_color(0, 0, 0)
-
-    # === CORREÇÃO FINAL E SEGURA PARA O STREAMLIT ===
+        pdf.set_font("Arial", "B", 10)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_fill_color(31, 78, 95)
+        for dia in DIAS_SEMANA_CURTO:
+            pdf.cell(col_width, row_height, dia, 1, 0, 'C', fill=True)
+        pdf.ln(row_height)
+        
+        # Calendario
+        cal_matrix = calendar.monthcalendar(ano, mes)
+        calendar.setfirstweekday(calendar.SUNDAY)
+        cal_matrix = calendar.monthcalendar(ano, mes)
+        
+        pdf.set_font("Arial", "", 8)
+        pdf.set_text_color(0, 0, 0)
+        
+        for semana in cal_matrix:
+            alturas = []
+            x_start = pdf.get_x()
+            y_start = pdf.get_y()
+            
+            # Primeira passada: desenha células
+            for col, dia in enumerate(semana):
+                if dia == 0:
+                    pdf.cell(col_width, 50, '', 1)
+                else:
+                    chave = f"{ano}-{mes}-{dia}"
+                    texto = f"{dia}"
+                    
+                    if chave in eventos_dict:
+                        for evt in eventos_dict[chave]:
+                            texto += f"\n{evt['titulo']}"
+                            texto += f"\n{evt['local']}"
+                            texto += f"\n{evt['hora']}"
+                    
+                    # Fundo colorido se tem evento
+                    if chave in eventos_dict:
+                        pdf.set_fill_color(235, 242, 245)
+                        pdf.multi_cell(col_width, 50, texto, 1, 'L', fill=True)
+                    else:
+                        pdf.multi_cell(col_width, 50, texto, 1, 'L')
+            
+            pdf.ln(50)
+    
+    # Retorna bytes compatíveis com Streamlit
     try:
-        # Tenta obter a string (versões antigas do FPDF)
         val = pdf.output(dest='S')
         if isinstance(val, str):
             return val.encode('latin-1')
-        return bytes(val) # Se for bytearray, converte
+        return bytes(val)
     except:
-        # Fallback se dest='S' não for suportado
         return bytes(pdf.output())
 
 # ==========================================
@@ -202,7 +228,7 @@ st.markdown("""
     .app-header { position: fixed; top: 0; left: 0; width: 100%; background-color: #1F4E5F; color: white; padding: 15px 20px; z-index: 999; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; }
     .app-header h1 { margin: 0; font-family: 'Roboto', sans-serif; font-size: 18px; font-weight: 600; color: white !important; }
     .header-spacer { height: 70px; }
-    .event-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.03); display: flex; align-items: flex-start; gap: 15px; position: relative; }
+    .event-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.03); display: flex; align-items: flex-start; gap: 15px; }
     .date-box { background-color: #EBF2F5; border-radius: 12px; min-width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #1F4E5F; }
     .date-day { font-size: 22px; font-weight: 800; line-height: 1; }
     .date-month { font-size: 10px; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
@@ -315,12 +341,12 @@ elif st.session_state['nav'] == 'Admin':
         st.markdown("#### 📥 Baixar Arquivos")
         c_exc, c_pdf = st.columns(2)
         with c_exc:
-            st.write("**Excel (.xlsx)**")
-            d_excel = gerar_excel_buffer(st.session_state['ano_base'], st.session_state['eventos'], logo_data)
+            st.write("**Calendário Excel (.xlsx)**")
+            d_excel = gerar_excel_calendario(st.session_state['ano_base'], st.session_state['eventos'], logo_data)
             st.download_button("⬇️ Baixar Excel", d_excel, f"Calendario_{st.session_state['ano_base']}.xlsx", key="excel_btn")
         with c_pdf:
-            st.write("**PDF (.pdf)**")
-            d_pdf = gerar_pdf_buffer(st.session_state['ano_base'], st.session_state['eventos'])
+            st.write("**Calendário PDF (.pdf)**")
+            d_pdf = gerar_pdf_calendario(st.session_state['ano_base'], st.session_state['eventos'])
             st.download_button("⬇️ Baixar PDF", d_pdf, f"Calendario_{st.session_state['ano_base']}.pdf", key="pdf_btn")
 
     elif senha:
