@@ -56,7 +56,7 @@ def montar_agenda_ordenada(ano, lista_eventos):
     return lista_final
 
 def gerar_link_google(dt, evt_data):
-    # Link otimizado para mobile
+    # Link otimizado para abrir no app do celular
     titulo = quote(f"{evt_data['titulo']} - {evt_data['local']}")
     hora_limpa = evt_data['hora'].replace("HRS", "").replace(":", "").strip()
     if len(hora_limpa) < 4: hora_limpa = "1930"
@@ -65,62 +65,76 @@ def gerar_link_google(dt, evt_data):
     local = quote(evt_data['local'])
     return f"https://calendar.google.com/calendar/r/eventedit?text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB"
 
-def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
+# ===== FUNÇÃO EXCEL COMPLETA (RESTAURADA) =====
+def gerar_excel_buffer(ano, lista_eventos, uploaded_logo=None):
     output = BytesIO()
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
     
-    # Estilos
+    # Estilos Profissionais
     header_fmt = wb.add_format({'bold': True, 'bg_color': '#1F4E5F', 'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 'border': 1})
-    title_fmt = wb.add_format({'bold': True, 'font_size': 14, 'bg_color': '#EBF2F5', 'align': 'center', 'valign': 'vcenter'})
+    title_fmt = wb.add_format({'bold': True, 'font_size': 14, 'bg_color': '#EBF2F5', 'align': 'center', 'valign': 'vcenter', 'border': 1})
     data_fmt = wb.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1})
     center_fmt = wb.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
     
     # Calcula eventos
     agenda = montar_agenda_ordenada(ano, lista_eventos)
     
-    # Por mês
+    # Cria uma aba para cada mês
     for mes in range(1, 13):
-        ws = wb.add_worksheet(NOMES_MESES[mes])
-        ws.set_column('A:A', 12)
-        ws.set_column('B:B', 12)
-        ws.set_column('C:C', 30)
-        ws.set_column('D:D', 35)
-        ws.set_column('E:E', 12)
+        nome_mes = NOMES_MESES[mes]
+        ws = wb.add_worksheet(nome_mes)
         
-        # Título do mês
-        ws.merge_range('A1:E1', f"{NOMES_MESES[mes]} {ano}", title_fmt)
+        # Configuração de largura das colunas
+        ws.set_column('A:A', 12) # Data
+        ws.set_column('B:B', 10) # Dia Sem
+        ws.set_column('C:C', 30) # Evento
+        ws.set_column('D:D', 35) # Local
+        ws.set_column('E:E', 12) # Hora
         
-        # Headers
-        ws.write('A2', 'Data', header_fmt)
-        ws.write('B2', 'Dia Semana', header_fmt)
-        ws.write('C2', 'Evento', header_fmt)
-        ws.write('D2', 'Local', header_fmt)
-        ws.write('E2', 'Hora', header_fmt)
+        # Cabeçalho com Título e Logo
+        if uploaded_logo:
+            try:
+                img_data = BytesIO(uploaded_logo)
+                ws.insert_image('A1', 'logo.png', {'image_data': img_data, 'x_scale': 0.08, 'y_scale': 0.08})
+                ws.merge_range('A1:E2', f"AGENDA - {nome_mes} {ano}", title_fmt)
+            except:
+                ws.merge_range('A1:E1', f"{nome_mes} {ano}", title_fmt)
+        else:
+            ws.merge_range('A1:E1', f"{nome_mes} {ano}", title_fmt)
         
-        # Dados do mês
-        linha = 3
+        # Linha de Títulos das Colunas
+        row_header = 2 if uploaded_logo else 1
+        ws.write(row_header, 0, 'DATA', header_fmt)
+        ws.write(row_header, 1, 'DIA', header_fmt)
+        ws.write(row_header, 2, 'EVENTO', header_fmt)
+        ws.write(row_header, 3, 'LOCAL', header_fmt)
+        ws.write(row_header, 4, 'HORA', header_fmt)
+        
+        # Preenchimento dos Dados
+        linha = row_header + 1
         for dt, evt_data in agenda:
             if dt.month == mes and dt.year == ano:
-                ws.write(linha-1, 0, dt.strftime('%d/%m/%Y'), data_fmt)
-                ws.write(linha-1, 1, DIAS_SEMANA_CURTO[int(dt.strftime("%w"))], center_fmt)
-                ws.write(linha-1, 2, evt_data['titulo'], data_fmt)
-                ws.write(linha-1, 3, evt_data['local'], data_fmt)
-                ws.write(linha-1, 4, evt_data['hora'], center_fmt)
+                ws.write(linha, 0, dt.strftime('%d/%m/%Y'), center_fmt)
+                ws.write(linha, 1, DIAS_SEMANA_CURTO[int(dt.strftime("%w"))], center_fmt)
+                ws.write(linha, 2, evt_data['titulo'], data_fmt)
+                ws.write(linha, 3, evt_data['local'], data_fmt)
+                ws.write(linha, 4, evt_data['hora'], center_fmt)
                 linha += 1
     
     wb.close()
     output.seek(0)
     return output
 
+# ===== FUNÇÃO PDF COMPLETA (RESTAURADA E CORRIGIDA) =====
 def gerar_pdf_buffer(ano, lista_eventos):
     # Configuração PDF
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
     
-    # Título
+    # Título Principal
     pdf.set_font("Arial", "B", 20)
-    pdf.set_text_color(31, 78, 95)
+    pdf.set_text_color(31, 78, 95) # Cor Azul Petróleo
     pdf.cell(0, 15, f"CALENDARIO CCB JACIARA {ano}", 0, 1, 'C')
     
     pdf.set_font("Arial", "", 10)
@@ -133,37 +147,48 @@ def gerar_pdf_buffer(ano, lista_eventos):
     for dt, evt_data in agenda:
         if dt.month != mes_atual:
             mes_atual = dt.month
+            pdf.ln(5)
+            
+            # Cabeçalho do Mês com fundo colorido (simulando o Excel)
+            pdf.set_fill_color(235, 242, 245) # Cinza azulado claro
             pdf.set_font("Arial", "B", 12)
             pdf.set_text_color(31, 78, 95)
-            pdf.ln(3)
-            # Tratamento de acentuação manual para evitar erros de encoding
+            
+            # Tratamento de acentuação do Mês
             nome_mes = NOMES_MESES[mes_atual]
             try:
                 nome_mes = nome_mes.encode('latin-1', 'ignore').decode('latin-1')
             except:
                 pass
-            pdf.cell(0, 8, f"{nome_mes} {ano}", 0, 1, 'L')
-            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            
+            pdf.cell(0, 8, f"  {nome_mes} {ano}", 0, 1, 'L', fill=True)
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y()) # Linha abaixo do mês
             pdf.ln(2)
-            pdf.set_font("Arial", "", 9)
+            pdf.set_font("Arial", "", 10)
             pdf.set_text_color(0, 0, 0)
         
-        # Tratamento de texto
+        # Tratamento de texto dos eventos
         try:
             dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))].encode('latin-1', 'ignore').decode('latin-1')
             titulo = evt_data['titulo'].encode('latin-1', 'ignore').decode('latin-1')
             local = evt_data['local'].encode('latin-1', 'ignore').decode('latin-1')
         except:
-            # Fallback simples se falhar encoding
             dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
             titulo = evt_data['titulo']
             local = evt_data['local']
 
+        # Linha do evento
         texto = f"{dt.day:02d}/{dt.month:02d} ({dia_semana}) - {titulo} - {local} ({evt_data['hora']})"
-        pdf.multi_cell(0, 5, texto, 0, 'L')
-        pdf.ln(1)
+        pdf.multi_cell(0, 6, texto, 0, 'L')
+        
+        # Linha divisória sutil entre eventos
+        x_start = pdf.get_x()
+        y_start = pdf.get_y()
+        pdf.set_draw_color(220, 220, 220)
+        pdf.line(x_start, y_start, 200, y_start)
+        pdf.set_draw_color(0, 0, 0) # Reseta cor preta
     
-    # Solução definitiva para o erro de output
+    # Solução para o erro AttributeError
     val = pdf.output(dest='S')
     if isinstance(val, str):
         return val.encode('latin-1')
@@ -277,7 +302,6 @@ if st.session_state['nav'] == 'Agenda':
         for dt, evt_data in agenda:
             if dt.month != mes_atual:
                 mes_atual = dt.month
-                # CORREÇÃO DO ERRO DE SINTAXE AQUI:
                 st.markdown(f"<div class='month-separator'><span class='month-text'>{NOMES_MESES[mes_atual]} {dt.year}</span></div>", unsafe_allow_html=True)
             
             dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
@@ -312,7 +336,7 @@ elif st.session_state['nav'] == 'Admin':
         # 1. Configurações Gerais (Ano e Logo)
         st.markdown("#### 🔧 Configurações Gerais")
         st.session_state['ano_base'] = st.number_input("Ano de Referência", value=st.session_state['ano_base'], step=1)
-        uploaded_logo = st.file_uploader("Logo da Igreja", type=['jpg', 'png'])
+        uploaded_logo = st.file_uploader("Logo da Igreja (Para o Excel)", type=['jpg', 'png'])
         logo_data = uploaded_logo.getvalue() if uploaded_logo else None
         
         st.markdown("---")
