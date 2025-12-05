@@ -64,181 +64,142 @@ def gerar_link_google(dt, evt_data):
     local = quote(evt_data['local'])
     return f"https://calendar.google.com/calendar/r/eventedit?text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB"
 
-# ===== FUNÇÃO EXCEL (UMA ABA COM TODOS OS MESES) =====
+# ===== FUNÇÃO EXCEL (TODOS OS MESES, UMA ABA) =====
 def gerar_excel_todos_meses(ano, lista_eventos):
     output = BytesIO()
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
     ws = wb.add_worksheet("Calendário")
     
-    # Estilos
-    header_mes = wb.add_format({
-        'bold': True, 'font_size': 14, 'bg_color': '#1F4E5F', 
-        'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 
-        'border': 1, 'border_color': '#1F4E5F'
-    })
+    header_mes = wb.add_format({'bold': True, 'font_size': 14, 'bg_color': '#1F4E5F', 'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 'border': 1})
+    header_dias = wb.add_format({'bold': True, 'bg_color': '#1F4E5F', 'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 'border': 1, 'font_size': 10})
+    cell_dia = wb.add_format({'border': 1, 'align': 'right', 'valign': 'top', 'font_size': 11, 'bold': True})
+    cell_evento = wb.add_format({'border': 1, 'align': 'left', 'valign': 'top', 'font_size': 8, 'text_wrap': True, 'bg_color': '#F0F8FF'})
+    cell_vazio = wb.add_format({'border': 1})
     
-    header_dias = wb.add_format({
-        'bold': True, 'bg_color': '#1F4E5F', 'font_color': 'white',
-        'align': 'center', 'valign': 'vcenter', 'border': 1, 
-        'border_color': '#1F4E5F', 'font_size': 10
-    })
-    
-    cell_dia = wb.add_format({
-        'border': 1, 'border_color': '#CCCCCC', 'align': 'right', 
-        'valign': 'top', 'font_size': 11, 'bold': True
-    })
-    
-    cell_evento = wb.add_format({
-        'border': 1, 'border_color': '#CCCCCC', 'align': 'left', 
-        'valign': 'top', 'font_size': 8, 'text_wrap': True,
-        'bg_color': '#F0F8FF'
-    })
-    
-    cell_vazio = wb.add_format({
-        'border': 1, 'border_color': '#CCCCCC', 'bg_color': '#FFFFFF'
-    })
-    
-    # Dicionário de eventos
     agenda = montar_agenda_ordenada(ano, lista_eventos)
     eventos_dict = {}
     for dt, evt_data in agenda:
         chave = f"{dt.year}-{dt.month}-{dt.day}"
-        if chave not in eventos_dict:
-            eventos_dict[chave] = []
+        if chave not in eventos_dict: eventos_dict[chave] = []
         eventos_dict[chave].append(evt_data)
     
-    # Configuração de colunas
-    for col in range(7):
-        ws.set_column(col, col, 20)
+    for col in range(7): ws.set_column(col, col, 18)
     
     current_row = 0
-    
-    # Por mês
     for mes in range(1, 13):
         nome_mes = NOMES_MESES[mes]
-        
-        # Título do mês
         ws.merge_range(current_row, 0, current_row, 6, f"{nome_mes} {ano}", header_mes)
-        ws.set_row(current_row, 25)
+        ws.set_row(current_row, 30)
         current_row += 1
         
-        # Cabeçalho com dias da semana
         for col, dia in enumerate(DIAS_SEMANA_CURTO):
             ws.write(current_row, col, dia, header_dias)
         ws.set_row(current_row, 20)
         current_row += 1
         
-        # Cria matriz de calendário
         cal_matrix = calendar.monthcalendar(ano, mes)
-        
-        # Preenche o calendário
         for semana in cal_matrix:
-            ws.set_row(current_row, 60)
+            ws.set_row(current_row, 70)
             for col, dia in enumerate(semana):
                 if dia == 0:
                     ws.write(current_row, col, '', cell_vazio)
                 else:
                     chave = f"{ano}-{mes}-{dia}"
-                    
                     if chave in eventos_dict:
                         texto = f"{dia}\n"
-                        for evt in eventos_dict[chave]:
-                            texto += f"{evt['titulo']}\n{evt['local']}\n{evt['hora']}\n"
+                        for evt in eventos_dict[chave]: texto += f"{evt['titulo']}\n{evt['local']}\n{evt['hora']}\n"
                         ws.write(current_row, col, texto, cell_evento)
                     else:
                         ws.write(current_row, col, dia, cell_dia)
-            
             current_row += 1
-        
-        # Espaço entre meses
-        current_row += 1
+        current_row += 2
     
     wb.close()
     output.seek(0)
     return output
 
-# ===== FUNÇÃO PDF CORRIGIDA =====
+# ===== FUNÇÃO PDF (GRID PERFEITO) =====
 def gerar_pdf_calendario(ano, lista_eventos):
-    pdf = FPDF(orientation='P', unit='mm', format='A4')
-    pdf.set_auto_page_break(auto=True, margin=10)
+    # Usa A4 Landscape (Horizontal) para ter mais espaço
+    pdf = FPDF(orientation='L', unit='mm', format='A4')
+    pdf.set_auto_page_break(auto=False)
     
-    # Dicionário de eventos
     agenda = montar_agenda_ordenada(ano, lista_eventos)
     eventos_dict = {}
     for dt, evt_data in agenda:
         chave = f"{dt.year}-{dt.month}-{dt.day}"
-        if chave not in eventos_dict:
-            eventos_dict[chave] = []
+        if chave not in eventos_dict: eventos_dict[chave] = []
         eventos_dict[chave].append(evt_data)
     
-    # Por mês
     for mes in range(1, 13):
         pdf.add_page()
         
-        # Título
-        pdf.set_font("Arial", "B", 18)
+        # Título Mês
+        pdf.set_font("Arial", "B", 22)
         pdf.set_text_color(31, 78, 95)
-        nome_mes = NOMES_MESES[mes]
-        pdf.cell(0, 12, f"{nome_mes} {ano}", 0, 1, 'C')
-        pdf.ln(3)
+        pdf.cell(0, 15, f"{NOMES_MESES[mes]} {ano}", 0, 1, 'C')
+        pdf.ln(5)
         
-        # Cabeçalho dos dias (linha com fundo azul)
-        col_width = 30  # Largura para 7 dias em A4 (210mm / 7 ≈ 30mm)
-        row_height = 25
+        # Configuração do Grid
+        margin_left = 10
+        col_width = 38  # (297 - 20) / 7 ≈ 39
+        row_height = 30 
+        header_height = 10
         
-        pdf.set_font("Arial", "B", 9)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_fill_color(31, 78, 95)  # Azul escuro
+        # Cabeçalho Dias da Semana
+        pdf.set_font("Arial", "B", 10)
+        pdf.set_fill_color(31, 78, 95) # Azul Escuro
+        pdf.set_text_color(255, 255, 255) # Branco
         
-        x_start = pdf.get_x()
-        
+        pdf.set_xy(margin_left, pdf.get_y())
         for dia in DIAS_SEMANA_CURTO:
-            pdf.cell(col_width, row_height, dia, border=1, ln=False, align='C', fill=True)
-        pdf.ln(row_height)
+            pdf.cell(col_width, header_height, dia, 1, 0, 'C', fill=True)
+        pdf.ln(header_height)
         
-        # Calendário
+        # Dias do Mês
         cal_matrix = calendar.monthcalendar(ano, mes)
-        
-        pdf.set_font("Arial", "", 8)
         pdf.set_text_color(0, 0, 0)
-        pdf.set_fill_color(255, 255, 255)
+        pdf.set_font("Arial", "", 8)
+        
+        y_start = pdf.get_y()
         
         for semana in cal_matrix:
-            # Altura da célula (40mm para caber bastante info)
-            y_before = pdf.get_y()
+            x_current = margin_left
             
-            for col_idx, dia in enumerate(semana):
-                x_pos = pdf.get_x()
+            # Altura fixa para todas as células da linha
+            max_h = row_height
+            
+            for dia in semana:
+                # Desenha o retângulo da célula PRIMEIRO
+                pdf.set_xy(x_current, y_start)
+                pdf.cell(col_width, max_h, '', 1) # Borda
                 
-                if dia == 0:
-                    # Célula vazia
-                    pdf.cell(col_width, 40, '', border=1)
-                else:
+                if dia != 0:
                     chave = f"{ano}-{mes}-{dia}"
                     
-                    # Prepara texto
-                    texto = f"{dia}"
-                    if chave in eventos_dict:
-                        for evt in eventos_dict[chave]:
-                            texto += f"\n{evt['titulo']}\n{evt['local']}\n{evt['hora']}"
+                    # Número do dia
+                    pdf.set_xy(x_current + 1, y_start + 1)
+                    pdf.set_font("Arial", "B", 10)
+                    pdf.cell(5, 5, str(dia), 0, 0)
                     
-                    # Desenha célula com evento destacado
+                    # Eventos
                     if chave in eventos_dict:
-                        pdf.set_fill_color(200, 230, 245)  # Azul claro
-                        pdf.multi_cell(col_width, 40, texto, border=1, align='L', fill=False)
-                    else:
-                        pdf.multi_cell(col_width, 40, texto, border=1, align='L')
-                
-                # Move cursor para próxima coluna
-                pdf.set_xy(x_pos + col_width, y_before)
+                        pdf.set_xy(x_current + 1, y_start + 6)
+                        pdf.set_font("Arial", "", 7)
+                        texto_evt = ""
+                        for evt in eventos_dict[chave]:
+                            texto_evt += f"{evt['titulo']}\n{evt['local']}\n{evt['hora']}\n"
+                        
+                        # Imprime texto dentro da célula
+                        pdf.multi_cell(col_width - 2, 3.5, texto_evt, 0, 'L')
+
+                x_current += col_width
             
-            pdf.ln(40)
-    
-    # Retorna bytes
+            y_start += max_h # Vai para a próxima linha
+            
     try:
         val = pdf.output(dest='S')
-        if isinstance(val, str):
-            return val.encode('latin-1')
+        if isinstance(val, str): return val.encode('latin-1')
         return bytes(val)
     except:
         return bytes(pdf.output())
@@ -250,9 +211,7 @@ st.set_page_config(page_title="Agenda CCB", page_icon="📅", layout="centered",
 
 st.markdown("""
 <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
     .stApp { background-color: #F5F7FA; }
     .block-container { padding-top: 0rem; padding-bottom: 6rem; padding-left: 1rem; padding-right: 1rem; max-width: 100%; }
     .app-header { position: fixed; top: 0; left: 0; width: 100%; background-color: #1F4E5F; color: white; padding: 15px 20px; z-index: 999; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; }
@@ -342,7 +301,6 @@ elif st.session_state['nav'] == 'Admin':
         st.markdown("#### 🔧 Configurações Gerais")
         st.session_state['ano_base'] = st.number_input("Ano de Referência", value=st.session_state['ano_base'], step=1)
         uploaded_logo = st.file_uploader("Logo da Igreja (Para o Excel)", type=['jpg', 'png'])
-        logo_data = uploaded_logo.getvalue() if uploaded_logo else None
         
         st.markdown("---")
         
