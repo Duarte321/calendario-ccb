@@ -41,25 +41,27 @@ def calcular_eventos(ano, lista_eventos):
                             break
                 if dia_encontrado:
                     chave = f"{ano}-{mes}-{dia_encontrado}"
-                    texto = f"{evt['nome']} {evt['local']} - {evt['hora']}"
+                    # Guardamos um dicionário com dados separados para facilitar a estilização
+                    evento_dados = {
+                        "titulo": evt['nome'],
+                        "local": evt['local'],
+                        "hora": evt['hora']
+                    }
                     if chave not in agenda: agenda[chave] = []
-                    agenda[chave].append(texto)
+                    agenda[chave].append(evento_dados)
     return agenda
 
 def montar_agenda_ordenada(ano, lista_eventos):
-    """ Gera uma lista plana ordenada por data para visualização """
+    """ Gera uma lista ordenada para visualização """
     dados = calcular_eventos(ano, lista_eventos)
     lista_final = []
     
-    for chave, eventos in dados.items():
-        # chave formato "2026-1-15"
+    for chave, lista_evts_dados in dados.items():
         parts = chave.split('-')
         dt = date(int(parts[0]), int(parts[1]), int(parts[2]))
-        
-        for evt_texto in eventos:
-            lista_final.append((dt, evt_texto))
+        for evt_data in lista_evts_dados:
+            lista_final.append((dt, evt_data))
             
-    # Ordena por data
     lista_final.sort(key=lambda x: x[0])
     return lista_final
 
@@ -68,12 +70,10 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
     ws = wb.add_worksheet(f"Calendário {ano}")
 
-    # CORES
     COR_VERDE_ESCURO = '#1F4E5F'
     COR_AMARELO_NEON = '#FFFF00'
     COR_CINZA_LINHA  = '#D9D9D9'
 
-    # FORMATOS
     fmt_ano = wb.add_format({'bold': True, 'font_size': 24, 'font_color': 'white', 'bg_color': COR_VERDE_ESCURO, 'align': 'center', 'valign': 'vcenter', 'border': 1})
     fmt_mes_nome = wb.add_format({'font_size': 28, 'font_color': COR_VERDE_ESCURO, 'align': 'left', 'valign': 'bottom'})
     fmt_header_sem = wb.add_format({'bold': True, 'font_color': 'white', 'bg_color': COR_VERDE_ESCURO, 'font_size': 9, 'align': 'left', 'valign': 'vcenter', 'border': 0})
@@ -81,7 +81,13 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
     fmt_evento_bg = wb.add_format({'valign': 'center', 'align': 'center', 'border': 1, 'border_color': COR_CINZA_LINHA, 'bg_color': COR_AMARELO_NEON, 'text_wrap': True, 'font_size': 10, 'bold': True})
     fmt_logo_celula = wb.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
 
-    dados = calcular_eventos(ano, lista_eventos)
+    dados_agenda = calcular_eventos(ano, lista_eventos)
+    # Converter o formato novo de dados para texto simples pro Excel
+    dados_simples = {}
+    for k, v_list in dados_agenda.items():
+        textos = [f"{x['titulo']} {x['local']} - {x['hora']}" for x in v_list]
+        dados_simples[k] = textos
+
     calendar.setfirstweekday(calendar.SUNDAY)
 
     LINHA = 0
@@ -89,16 +95,13 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
         ws.write(LINHA, 0, ano, fmt_ano)
         ws.merge_range(LINHA, 1, LINHA, 5, NOMES_MESES[mes], fmt_mes_nome)
         ws.set_row(LINHA, 40)
-
-        if uploaded_logo is not None:
+        if uploaded_logo:
             ws.insert_image(LINHA, 6, "logo.jpg", {'image_data': uploaded_logo, 'x_scale': 0.25, 'y_scale': 0.25, 'x_offset': 5, 'y_offset': 2, 'positioning': 2})
         else:
             ws.write(LINHA, 6, "", fmt_logo_celula)
-
         LINHA += 1
         ws.write_row(LINHA, 0, DIAS_SEMANA_PT, fmt_header_sem)
         LINHA += 1
-
         cal = calendar.monthcalendar(ano, mes)
         for semana in cal:
             ws.set_row(LINHA, 60)
@@ -108,8 +111,8 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
                     ws.write(LINHA, COL, "", fmt_dia_box)
                 else:
                     chave = f"{ano}-{mes}-{dia}"
-                    if chave in dados:
-                        textos_evt = "\n".join(dados[chave])
+                    if chave in dados_simples:
+                        textos_evt = "\n".join(dados_simples[chave])
                         ws.write(LINHA, COL, f"{dia}\n{textos_evt}", fmt_evento_bg)
                     else:
                         ws.write(LINHA, COL, dia, fmt_dia_box)
@@ -117,7 +120,6 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
             LINHA += 1
         ws.merge_range(LINHA, 0, LINHA, 6, " Anotações:", fmt_dia_box)
         LINHA += 2
-
     ws.set_column('A:G', 18)
     wb.close()
     output.seek(0)
@@ -127,103 +129,138 @@ def gerar_pdf_buffer(ano, lista_eventos):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=False, margin=8)
     
-    dados = calcular_eventos(ano, lista_eventos)
+    dados_agenda = calcular_eventos(ano, lista_eventos)
+    dados_simples = {}
+    for k, v_list in dados_agenda.items():
+        textos = [f"{x['titulo']}\n{x['local']} AS {x['hora']}" for x in v_list]
+        dados_simples[k] = textos
     
     for mes in range(1, 13):
         pdf.add_page()
-        
-        # CABEÇALHO COM ANO E MÊS
         pdf.set_font("Helvetica", style="B", size=20)
         pdf.set_text_color(255, 255, 255)
         pdf.set_fill_color(31, 78, 95)
-        
         pdf.cell(25, 12, str(ano), border=1, align="C", fill=True)
-        
         mes_nome = NOMES_MESES[mes].lower()
         pdf.cell(0, 12, mes_nome, border=1, align="C", fill=True, ln=1)
-        
         pdf.ln(3)
-        
-        # CABEÇALHO DIAS DA SEMANA
         pdf.set_font("Helvetica", style="B", size=8)
         pdf.set_text_color(255, 255, 255)
         pdf.set_fill_color(31, 78, 95)
-        
         dias_semana_pt = ["DOMINGO", "SEGUNDA-FEIRA", "TERCA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SABADO"]
         largura_coluna = (pdf.w - 16) / 7
         altura_header = 8
-        
         for dia_sem in dias_semana_pt:
             pdf.cell(largura_coluna, altura_header, dia_sem, border=1, align="C", fill=True)
         pdf.ln()
-        
-        # CALENDÁRIO EM GRADE
         calendar.setfirstweekday(calendar.SUNDAY)
         cal = calendar.monthcalendar(ano, mes)
-        
         altura_dia = 32
-        
         for semana in cal:
             y_inicial = pdf.get_y()
             x_inicial = pdf.get_x()
-            
             for idx, dia in enumerate(semana):
                 pdf.set_xy(x_inicial + (idx * largura_coluna), y_inicial)
-                
                 if dia == 0:
                     pdf.set_fill_color(230, 230, 230)
                     pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
                 else:
                     chave = f"{ano}-{mes}-{dia}"
-                    if chave in dados:
+                    if chave in dados_simples:
                         pdf.set_fill_color(255, 255, 0)
                         pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
                     else:
                         pdf.set_fill_color(255, 255, 255)
                         pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
-            
             for idx, dia in enumerate(semana):
                 if dia != 0:
                     pdf.set_xy(x_inicial + (idx * largura_coluna), y_inicial)
-                    
                     pdf.set_font("Helvetica", style="B", size=11)
                     pdf.set_text_color(0, 0, 0)
                     pdf.set_xy(x_inicial + (idx * largura_coluna) + 1, y_inicial + 1)
                     pdf.cell(6, 5, str(dia), border=0, align="L")
-                    
                     chave = f"{ano}-{mes}-{dia}"
-                    if chave in dados:
-                        texto_evento = "\n".join(dados[chave])
+                    if chave in dados_simples:
+                        texto_evento = "\n".join(dados_simples[chave])
                         texto_limpo = texto_evento.replace("Á", "A").replace("á", "a").replace("É", "E").replace("é", "e").replace("Í", "I").replace("í", "i").replace("Ó", "O").replace("ó", "o").replace("Ú", "U").replace("ú", "u").replace("Ã", "A").replace("ã", "a").replace("Õ", "O").replace("õ", "o").replace("Ç", "C").replace("ç", "c")
-                        
                         pdf.set_xy(x_inicial + (idx * largura_coluna), y_inicial + 7)
                         pdf.set_font("Helvetica", style="B", size=8)
                         pdf.multi_cell(largura_coluna, 3.5, texto_limpo, align="C")
-            
             pdf.set_xy(x_inicial, y_inicial + altura_dia)
-        
         pdf.ln(3)
         pdf.set_font("Helvetica", style="", size=10)
         pdf.set_text_color(0, 0, 0)
         pdf.set_fill_color(255, 255, 255)
         pdf.cell(0, 6, " Anotacoes:", border=1, ln=1)
-    
     return bytes(pdf.output())
 
 # ==========================================
 # 2. INTERFACE DO APP (STREAMLIT)
 # ==========================================
 st.set_page_config(page_title="Gerador CCB", page_icon="📅", layout="wide")
+
+# Custom CSS para deixar bonito
+st.markdown("""
+<style>
+    .agenda-card {
+        background-color: #f8f9fa;
+        border-left: 5px solid #1F4E5F;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .agenda-dia {
+        font-size: 24px;
+        font-weight: bold;
+        color: #1F4E5F;
+        text-align: center;
+        line-height: 1;
+    }
+    .agenda-sem {
+        font-size: 12px;
+        color: #666;
+        text-align: center;
+        text-transform: uppercase;
+    }
+    .agenda-titulo {
+        font-weight: bold;
+        font-size: 16px;
+        color: #000;
+    }
+    .agenda-local {
+        color: #333;
+        font-size: 14px;
+    }
+    .agenda-hora {
+        color: #1F4E5F;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    .mes-header {
+        color: white;
+        background-color: #1F4E5F;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 20px;
+        margin-bottom: 10px;
+        text-align: center;
+        font-size: 20px;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("📅 Gerador de Calendário CCB")
 
-# --- SIDEBAR (CONFIGURAÇÕES GERAIS) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Configuração")
     ano_escolhido = st.number_input("Ano do Calendário", value=date.today().year + 1, step=1)
     uploaded_file = st.file_uploader("Escolher Logo (Opcional)", type=['jpg', 'png'])
     logo_data = uploaded_file.getvalue() if uploaded_file else None
 
-# --- INICIALIZAÇÃO DE ESTADO ---
 if 'eventos' not in st.session_state:
     st.session_state['eventos'] = [
         {"nome": "ENSAIO LOCAL", "semana": "1", "dia_sem": "6", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "SÃO PEDRO DA CIPA - MT"},
@@ -239,19 +276,11 @@ if 'eventos' not in st.session_state:
         {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "6", "interc": "Meses Pares", "hora": "19:30 HRS", "local": "DISTRITO DE CELMA - MT"},
     ]
 
-# --- SELETOR DE MODO (VISUALIZAÇÃO) ---
-modo = st.radio(
-    "Modo de Visualização:",
-    ["⚙️ Configuração / Gerar Arquivos", "🗓️ Visualizar Agenda Completa"],
-    horizontal=True
-)
+modo = st.radio("Modo de Visualização:", ["⚙️ Configuração / Gerar Arquivos", "🗓️ Visualizar Agenda Completa"], horizontal=True)
 
 st.divider()
 
 if modo == "⚙️ Configuração / Gerar Arquivos":
-    st.write("Adicione eventos, confira a lista e gere os arquivos finais.")
-    
-    # --- FORMULÁRIO DE ADIÇÃO ---
     with st.expander("➕ Adicionar Novo Evento", expanded=True):
         col1, col2 = st.columns(2)
         with col1:
@@ -264,23 +293,13 @@ if modo == "⚙️ Configuração / Gerar Arquivos":
             novo_hora = st.text_input("Hora", value="19:30 HRS")
         
         if st.button("Adicionar Evento"):
-            item = {
-                "nome": novo_nome.upper(),
-                "local": novo_local.upper(),
-                "dia_sem": str(novo_dia),
-                "semana": novo_semana,
-                "hora": novo_hora.upper(),
-                "interc": novo_interc
-            }
+            item = {"nome": novo_nome.upper(), "local": novo_local.upper(), "dia_sem": str(novo_dia), "semana": novo_semana, "hora": novo_hora.upper(), "interc": novo_interc}
             st.session_state['eventos'].append(item)
             st.success("✅ Evento Adicionado!")
 
-    # --- LISTA DE EVENTOS ---
     st.subheader(f"📋 Lista de Eventos Cadastrados ({len(st.session_state['eventos'])})")
-
     for i, evt in enumerate(st.session_state['eventos']):
         dia_desc = DIAS_SEMANA_CURTO[int(evt['dia_sem'])]
-        
         with st.container():
             col_a, col_b, col_c = st.columns([5, 2, 1])
             with col_a:
@@ -294,55 +313,47 @@ if modo == "⚙️ Configuração / Gerar Arquivos":
                     st.rerun()
         st.divider()
 
-    # --- BOTÕES DE DOWNLOAD ---
     st.header("🚀 Gerar Arquivos Finais")
     col_excel, col_pdf = st.columns(2)
-
     with col_excel:
         if st.button("📊 Gerar Excel"):
             arquivo_excel = gerar_excel_buffer(ano_escolhido, st.session_state['eventos'], logo_data)
-            st.download_button(
-                label="⬇️ BAIXAR EXCEL",
-                data=arquivo_excel,
-                file_name=f"Calendario_CCB_{ano_escolhido}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )
-
+            st.download_button(label="⬇️ BAIXAR EXCEL", data=arquivo_excel, file_name=f"Calendario_CCB_{ano_escolhido}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     with col_pdf:
         if st.button("📄 Gerar PDF"):
             arquivo_pdf = gerar_pdf_buffer(ano_escolhido, st.session_state['eventos'])
-            st.download_button(
-                label="⬇️ BAIXAR PDF",
-                data=arquivo_pdf,
-                file_name=f"Calendario_CCB_{ano_escolhido}.pdf",
-                mime="application/pdf",
-            )
+            st.download_button(label="⬇️ BAIXAR PDF", data=arquivo_pdf, file_name=f"Calendario_CCB_{ano_escolhido}.pdf", mime="application/pdf")
 
 else:
-    # --- MODO AGENDA (LISTA) ---
+    # --- MODO AGENDA (ESTILIZADO) ---
     st.header(f"🗓️ Agenda Completa de {ano_escolhido}")
-    st.markdown("Lista cronológica de todos os eventos calculados para o ano.")
-    
     agenda = montar_agenda_ordenada(ano_escolhido, st.session_state['eventos'])
     
     if not agenda:
         st.warning("Nenhum evento encontrado para os critérios cadastrados.")
     else:
         mes_atual = 0
-        for dt, texto in agenda:
-            # Agrupa visualmente por mês
+        for dt, evt_data in agenda:
             if dt.month != mes_atual:
                 mes_atual = dt.month
-                st.markdown(f"### {NOMES_MESES[mes_atual].upper()}")
-                
-            dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
-            data_fmt = dt.strftime("%d/%m/%Y")
+                st.markdown(f"<div class='mes-header'>{NOMES_MESES[mes_atual]}</div>", unsafe_allow_html=True)
             
-            with st.container():
-                col1, col2 = st.columns([2, 5])
-                with col1:
-                    st.markdown(f"**{data_fmt}**")
-                    st.caption(dia_semana)
-                with col2:
-                    st.write(texto)
-            st.divider()
+            dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
+            dia_num = dt.day
+            
+            # Card HTML estilizado
+            st.markdown(f"""
+            <div class="agenda-card">
+                <div style="display: flex; align-items: center;">
+                    <div style="width: 80px; flex-shrink: 0; border-right: 1px solid #ddd; padding-right: 10px; margin-right: 15px;">
+                        <div class="agenda-dia">{dia_num}</div>
+                        <div class="agenda-sem">{dia_semana}</div>
+                    </div>
+                    <div style="flex-grow: 1;">
+                        <div class="agenda-titulo">{evt_data['titulo']}</div>
+                        <div class="agenda-local">📍 {evt_data['local']}</div>
+                        <div class="agenda-hora">🕒 {evt_data['hora']}</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
