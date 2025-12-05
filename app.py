@@ -74,13 +74,12 @@ def gerar_excel_todos_meses(ano, lista_eventos):
     header_dias = wb.add_format({'bold': True, 'bg_color': '#1F4E5F', 'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 'border': 1, 'font_size': 10})
     cell_dia = wb.add_format({'border': 1, 'align': 'left', 'valign': 'top', 'font_size': 10, 'bold': True})
     
-    # Célula amarela para eventos
     cell_evento = wb.add_format({
         'border': 1, 'align': 'left', 'valign': 'top', 'font_size': 8, 
         'text_wrap': True, 'bg_color': '#FFFF00', 'bold': True
     })
     
-    cell_vazio = wb.add_format({'border': 1, 'bg_color': '#E0E0E0'}) # Cinza para dias vazios (opcional, igual imagem)
+    cell_vazio = wb.add_format({'border': 1, 'bg_color': '#E0E0E0'})
     
     agenda = montar_agenda_ordenada(ano, lista_eventos)
     eventos_dict = {}
@@ -119,7 +118,6 @@ def gerar_excel_todos_meses(ano, lista_eventos):
                         ws.write(current_row, col, dia, cell_dia)
             current_row += 1
         
-        # Campo Anotações no Excel tbm
         current_row += 1
         ws.merge_range(current_row, 0, current_row, 6, "Anotações:", wb.add_format({'border': 1, 'align': 'left'}))
         current_row += 2
@@ -143,30 +141,24 @@ def gerar_pdf_calendario(ano, lista_eventos):
     for mes in range(1, 13):
         pdf.add_page()
         
-        # --- CABEÇALHO ---
-        # Retângulo Azul Escuro Fundo Título
         pdf.set_fill_color(31, 78, 95)
         pdf.rect(10, 10, 190, 15, 'F')
         
-        # Texto Ano (Esquerda)
         pdf.set_xy(10, 10)
         pdf.set_font("Arial", "B", 16)
         pdf.set_text_color(255, 255, 255)
         pdf.cell(20, 15, str(ano), 0, 0, 'C')
         
-        # Texto Mês (Centro)
         pdf.set_xy(30, 10)
         pdf.cell(150, 15, NOMES_MESES[mes], 0, 0, 'C')
         
         pdf.ln(20)
         
-        # --- GRID ---
         margin_left = 10
-        col_width = 27.1  # (190mm / 7)
-        row_height = 30   # Altura das células
+        col_width = 27.1
+        row_height = 30
         header_height = 8
         
-        # Dias da Semana
         pdf.set_font("Arial", "B", 8)
         pdf.set_fill_color(31, 78, 95)
         pdf.set_text_color(255, 255, 255)
@@ -176,7 +168,6 @@ def gerar_pdf_calendario(ano, lista_eventos):
             pdf.cell(col_width, header_height, dia, 1, 0, 'C', fill=True)
         pdf.ln(header_height)
         
-        # Dias do Mês
         cal_matrix = calendar.monthcalendar(ano, mes)
         y_start = pdf.get_y()
         
@@ -185,29 +176,25 @@ def gerar_pdf_calendario(ano, lista_eventos):
             for dia in semana:
                 chave = f"{ano}-{mes}-{dia}"
                 
-                # Cor de fundo da célula
                 if dia == 0:
-                    pdf.set_fill_color(230, 230, 230) # Cinza claro para dias fora do mês
+                    pdf.set_fill_color(230, 230, 230)
                 elif chave in eventos_dict:
-                    pdf.set_fill_color(255, 255, 0) # AMARELO VIVO (#FFFF00)
+                    pdf.set_fill_color(255, 255, 0)
                 else:
-                    pdf.set_fill_color(255, 255, 255) # Branco
+                    pdf.set_fill_color(255, 255, 255)
                 
-                # Desenha Célula
                 pdf.set_xy(x_current, y_start)
                 pdf.cell(col_width, row_height, '', 1, 0, 'C', fill=True)
                 
                 if dia != 0:
-                    # Número do Dia
                     pdf.set_xy(x_current + 1, y_start + 1)
                     pdf.set_text_color(0, 0, 0)
                     pdf.set_font("Arial", "B", 10)
                     pdf.cell(5, 5, str(dia), 0, 0)
                     
-                    # Conteúdo do Evento
                     if chave in eventos_dict:
                         pdf.set_xy(x_current + 1, y_start + 6)
-                        pdf.set_font("Arial", "B", 6) # Fonte menor e negrito
+                        pdf.set_font("Arial", "B", 6)
                         texto = ""
                         for evt in eventos_dict[chave]:
                             texto += f"{evt['titulo']}\n{evt['local']}\n{evt['hora']}\n"
@@ -216,8 +203,7 @@ def gerar_pdf_calendario(ano, lista_eventos):
                 x_current += col_width
             y_start += row_height
             
-        # --- CAMPO ANOTAÇÕES ---
-        pdf.set_xy(margin_left, 260) # Perto do rodapé
+        pdf.set_xy(margin_left, 260)
         pdf.set_font("Arial", "B", 10)
         pdf.cell(190, 6, "Anotacoes:", "LTR", 1, 'L')
         pdf.cell(190, 15, "", "LBR", 1, 'L')
@@ -252,8 +238,20 @@ st.markdown("""
     .event-info { font-size: 13px; color: #666; display: flex; align-items: center; gap: 6px; margin-top: 2px; }
     .btn-notify { display: inline-block; margin-top: 8px; background-color: #eef6f8; color: #1F4E5F; font-size: 11px; font-weight: bold; padding: 6px 12px; border-radius: 20px; text-decoration: none; border: 1px solid #dbebf0; }
     .btn-notify:hover { background-color: #1F4E5F; color: white; border-color: #1F4E5F; }
-    .month-separator { margin: 25px 0 15px 0; padding-left: 5px; }
-    .month-text { font-size: 14px; font-weight: 800; color: #8898AA; text-transform: uppercase; letter-spacing: 1px; }
+    
+    /* AQUI ESTÁ O AJUSTE: FONTE GRANDE PARA O MÊS */
+    .month-separator { margin: 35px 0 20px 0; padding-left: 5px; }
+    .month-text { 
+        font-size: 24px !important; /* Fonte bem maior */
+        font-weight: 900 !important; 
+        color: #1F4E5F !important; /* Azul escuro bonito */
+        text-transform: uppercase; 
+        letter-spacing: 1.5px; 
+        border-bottom: 3px solid #A0C1D1; /* Linha decorativa embaixo */
+        padding-bottom: 5px;
+        display: inline-block;
+    }
+    
     .admin-container { background: white; padding: 20px; border-radius: 12px; margin-top: 10px; }
 </style>
 """, unsafe_allow_html=True)
