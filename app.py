@@ -56,13 +56,20 @@ def montar_agenda_ordenada(ano, lista_eventos):
     return lista_final
 
 def gerar_link_google(dt, evt_data):
+    """ Gera link compatível mobile para Google Agenda (Formato Universal) """
     titulo = quote(f"{evt_data['titulo']} - {evt_data['local']}")
+    
+    # Formata a hora para o padrão HHMM (Ex: 1930)
     hora_limpa = evt_data['hora'].replace("HRS", "").replace(":", "").strip()
-    if len(hora_limpa) < 4: hora_limpa = "1930"
+    if len(hora_limpa) < 4: hora_limpa = "1930" # Fallback
+    
     data_inicio = f"{dt.year}{dt.month:02d}{dt.day:02d}T{hora_limpa}00"
     data_fim = f"{dt.year}{dt.month:02d}{dt.day:02d}T{int(hora_limpa[:2])+2:02d}{hora_limpa[2:]}00"
+    
     local = quote(evt_data['local'])
-    return f"https://calendar.google.com/calendar/r/eventedit?text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB"
+    
+    # Link simplificado render?action=TEMPLATE funciona melhor em apps nativos
+    return f"https://www.google.com/calendar/render?action=TEMPLATE&text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB&sf=true&output=xml"
 
 # ===== FUNÇÃO EXCEL (COR AMARELA NOS EVENTOS) =====
 def gerar_excel_todos_meses(ano, lista_eventos):
