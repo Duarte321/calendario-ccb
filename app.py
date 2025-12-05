@@ -64,20 +64,93 @@ def gerar_link_google(dt, evt_data):
     local = quote(evt_data['local'])
     return f"https://calendar.google.com/calendar/r/eventedit?text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB"
 
+# ===== FUNÇÃO EXCEL COMPLETA =====
 def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
     output = BytesIO()
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
-    ws = wb.add_worksheet(f"Calendário {ano}")
-    # ... (Lógica Excel mantida simplificada)
+    
+    # Estilos
+    header_fmt = wb.add_format({'bold': True, 'bg_color': '#1F4E5F', 'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 'border': 1})
+    title_fmt = wb.add_format({'bold': True, 'font_size': 14, 'bg_color': '#EBF2F5', 'align': 'center', 'valign': 'vcenter'})
+    data_fmt = wb.add_format({'align': 'left', 'valign': 'vcenter', 'border': 1})
+    center_fmt = wb.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
+    
+    # Calcula eventos
+    agenda = montar_agenda_ordenada(ano, lista_eventos)
+    
+    # Por mês
+    for mes in range(1, 13):
+        ws = wb.add_worksheet(NOMES_MESES[mes])
+        ws.set_column('A:A', 12)
+        ws.set_column('B:B', 12)
+        ws.set_column('C:C', 30)
+        ws.set_column('D:D', 35)
+        ws.set_column('E:E', 12)
+        
+        # Título do mês
+        ws.merge_range('A1:E1', f"{NOMES_MESES[mes]} {ano}", title_fmt)
+        
+        # Headers
+        ws.write('A2', 'Data', header_fmt)
+        ws.write('B2', 'Dia Semana', header_fmt)
+        ws.write('C2', 'Evento', header_fmt)
+        ws.write('D2', 'Local', header_fmt)
+        ws.write('E2', 'Hora', header_fmt)
+        
+        # Dados do mês
+        linha = 3
+        for dt, evt_data in agenda:
+            if dt.month == mes and dt.year == ano:
+                ws.write(linha-1, 0, dt.strftime('%d/%m/%Y'), data_fmt)
+                ws.write(linha-1, 1, DIAS_SEMANA_CURTO[int(dt.strftime("%w"))], center_fmt)
+                ws.write(linha-1, 2, evt_data['titulo'], data_fmt)
+                ws.write(linha-1, 3, evt_data['local'], data_fmt)
+                ws.write(linha-1, 4, evt_data['hora'], center_fmt)
+                linha += 1
+    
     wb.close()
     output.seek(0)
     return output
 
+# ===== FUNÇÃO PDF COMPLETA =====
 def gerar_pdf_buffer(ano, lista_eventos):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
-    pdf.set_auto_page_break(auto=False, margin=8)
-    # ... (Lógica PDF mantida simplificada)
-    return bytes(pdf.output())
+    pdf.set_auto_page_break(auto=True, margin=10)
+    pdf.add_page()
+    
+    # Fonte
+    pdf.set_font("Arial", "B", 20)
+    pdf.set_text_color(31, 78, 95)
+    pdf.cell(0, 15, f"CALENDÁRIO CCB JACIARA {ano}", 0, 1, 'C')
+    
+    pdf.set_font("Arial", "", 10)
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(5)
+    
+    # Calcula eventos
+    agenda = montar_agenda_ordenada(ano, lista_eventos)
+    
+    # Por mês
+    mes_atual = 0
+    for dt, evt_data in agenda:
+        if dt.month != mes_atual:
+            mes_atual = dt.month
+            pdf.set_font("Arial", "B", 12)
+            pdf.set_text_color(31, 78, 95)
+            pdf.ln(3)
+            pdf.cell(0, 8, f"{NOMES_MESES[mes_atual]} {ano}", 0, 1, 'L')
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(2)
+            pdf.set_font("Arial", "", 9)
+            pdf.set_text_color(0, 0, 0)
+        
+        # Evento
+        dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
+        texto = f"{dt.day:02d}/{dt.month:02d} ({dia_semana}) - {evt_data['titulo']} - {evt_data['local']} ({evt_data['hora']})"
+        pdf.multi_cell(0, 5, texto, 0, 'L')
+        pdf.ln(1)
+    
+    return pdf.output(dest='S').encode('latin-1')
 
 # ==========================================
 # 2. VISUAL DO APP (INTERFACE)
@@ -167,7 +240,6 @@ if 'eventos' not in st.session_state:
     ]
 
 if 'nav' not in st.session_state: st.session_state['nav'] = 'Agenda'
-# Estado do ano base para cálculos
 if 'ano_base' not in st.session_state: st.session_state['ano_base'] = date.today().year + 1
 
 # Botões de Navegação
@@ -217,7 +289,7 @@ elif st.session_state['nav'] == 'Admin':
     senha = st.text_input("Senha de Acesso", type="password")
     
     if senha == "ccb123":
-        st.success("Acesso Liberado")
+        st.success("✅ Acesso Liberado")
         
         # 1. Configurações Gerais (Ano e Logo)
         st.markdown("#### 🔧 Configurações Gerais")
@@ -256,15 +328,18 @@ elif st.session_state['nav'] == 'Admin':
         # 4. Exportação (PDF e Excel)
         st.markdown("#### 📥 Baixar Arquivos")
         c_exc, c_pdf = st.columns(2)
+        
         with c_exc:
-            if st.button("Gerar Excel"):
-                d_excel = gerar_excel_buffer(st.session_state['ano_base'], st.session_state['eventos'], logo_data)
-                st.download_button("⬇️ Baixar .xlsx", d_excel, f"Calendario_{st.session_state['ano_base']}.xlsx")
+            st.write("**Excel (.xlsx)**")
+            d_excel = gerar_excel_buffer(st.session_state['ano_base'], st.session_state['eventos'], logo_data)
+            st.download_button("⬇️ Baixar Excel", d_excel, f"Calendario_{st.session_state['ano_base']}.xlsx", key="excel_btn")
+        
         with c_pdf:
-            if st.button("Gerar PDF"):
-                d_pdf = gerar_pdf_buffer(st.session_state['ano_base'], st.session_state['eventos'])
-                st.download_button("⬇️ Baixar .pdf", d_pdf, f"Calendario_{st.session_state['ano_base']}.pdf")
+            st.write("**PDF (.pdf)**")
+            d_pdf = gerar_pdf_buffer(st.session_state['ano_base'], st.session_state['eventos'])
+            st.download_button("⬇️ Baixar PDF", d_pdf, f"Calendario_{st.session_state['ano_base']}.pdf", key="pdf_btn")
 
     elif senha:
-        st.error("Senha Incorreta")
+        st.error("❌ Senha Incorreta")
+    
     st.markdown("</div>", unsafe_allow_html=True)
