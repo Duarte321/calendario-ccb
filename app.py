@@ -2,14 +2,15 @@ import streamlit as st
 import xlsxwriter
 import calendar
 from io import BytesIO
-import datetime
+from datetime import datetime, date
 from fpdf import FPDF
 
 # ==========================================
-# 1. LÓGICA DO CALENDÁRIO (CORRIGIDA)
+# 1. LÓGICA DO CALENDÁRIO
 # ==========================================
 NOMES_MESES = {1: "janeiro", 2: "fevereiro", 3: "março", 4: "abril", 5: "maio", 6: "junho", 7: "julho", 8: "agosto", 9: "setembro", 10: "outubro", 11: "novembro", 12: "dezembro"}
 DIAS_SEMANA_PT = ["DOMINGO", "SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SÁBADO"]
+DIAS_SEMANA_CURTO = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"]
 
 def calcular_eventos(ano, lista_eventos):
     agenda = {}
@@ -40,10 +41,27 @@ def calcular_eventos(ano, lista_eventos):
                             break
                 if dia_encontrado:
                     chave = f"{ano}-{mes}-{dia_encontrado}"
-                    texto = f"{evt['nome']}\n{evt['local']} AS {evt['hora']}"
+                    texto = f"{evt['nome']} {evt['local']} - {evt['hora']}"
                     if chave not in agenda: agenda[chave] = []
                     agenda[chave].append(texto)
     return agenda
+
+def montar_agenda_ordenada(ano, lista_eventos):
+    """ Gera uma lista plana ordenada por data para visualização """
+    dados = calcular_eventos(ano, lista_eventos)
+    lista_final = []
+    
+    for chave, eventos in dados.items():
+        # chave formato "2026-1-15"
+        parts = chave.split('-')
+        dt = date(int(parts[0]), int(parts[1]), int(parts[2]))
+        
+        for evt_texto in eventos:
+            lista_final.append((dt, evt_texto))
+            
+    # Ordena por data
+    lista_final.sort(key=lambda x: x[0])
+    return lista_final
 
 def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
     output = BytesIO()
@@ -149,7 +167,6 @@ def gerar_pdf_buffer(ano, lista_eventos):
             y_inicial = pdf.get_y()
             x_inicial = pdf.get_x()
             
-            # Loop 1: Desenha fundos e bordas
             for idx, dia in enumerate(semana):
                 pdf.set_xy(x_inicial + (idx * largura_coluna), y_inicial)
                 
@@ -165,18 +182,15 @@ def gerar_pdf_buffer(ano, lista_eventos):
                         pdf.set_fill_color(255, 255, 255)
                         pdf.cell(largura_coluna, altura_dia, "", border=1, fill=True)
             
-            # Loop 2: Escreve os textos
             for idx, dia in enumerate(semana):
                 if dia != 0:
                     pdf.set_xy(x_inicial + (idx * largura_coluna), y_inicial)
                     
-                    # Número do Dia
                     pdf.set_font("Helvetica", style="B", size=11)
                     pdf.set_text_color(0, 0, 0)
                     pdf.set_xy(x_inicial + (idx * largura_coluna) + 1, y_inicial + 1)
                     pdf.cell(6, 5, str(dia), border=0, align="L")
                     
-                    # Texto do Evento
                     chave = f"{ano}-{mes}-{dia}"
                     if chave in dados:
                         texto_evento = "\n".join(dados[chave])
@@ -199,170 +213,136 @@ def gerar_pdf_buffer(ano, lista_eventos):
 # ==========================================
 # 2. INTERFACE DO APP (STREAMLIT)
 # ==========================================
-st.set_page_config(page_title="Gerador CCB", page_icon="📅")
+st.set_page_config(page_title="Gerador CCB", page_icon="📅", layout="wide")
 st.title("📅 Gerador de Calendário CCB")
-st.write("Configure os eventos e gere sua planilha Excel ou PDF prontos.")
 
+# --- SIDEBAR (CONFIGURAÇÕES GERAIS) ---
 with st.sidebar:
     st.header("⚙️ Configuração")
-    ano_escolhido = st.number_input("Ano do Calendário", value=datetime.date.today().year + 1, step=1)
+    ano_escolhido = st.number_input("Ano do Calendário", value=date.today().year + 1, step=1)
     uploaded_file = st.file_uploader("Escolher Logo (Opcional)", type=['jpg', 'png'])
     logo_data = uploaded_file.getvalue() if uploaded_file else None
 
+# --- INICIALIZAÇÃO DE ESTADO ---
 if 'eventos' not in st.session_state:
     st.session_state['eventos'] = [
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "1",
-            "dia_sem": "6",
-            "interc": "Todos os Meses",
-            "hora": "19:30 HRS",
-            "local": "SÃO PEDRO DA CIPA - MT",
-        },
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "2",
-            "dia_sem": "5",
-            "interc": "Todos os Meses",
-            "hora": "19:30 HRS",
-            "local": "SANTA ELVIRA - MT",
-        },
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "2",
-            "dia_sem": "6",
-            "interc": "Todos os Meses",
-            "hora": "17:30 HRS",
-            "local": "SÃO LOURENÇO DE FATIMA - MT",
-        },
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "2",
-            "dia_sem": "0",
-            "interc": "Todos os Meses",
-            "hora": "16:30 HRS",
-            "local": "JARDIM BOA ESPERANÇA - MT",
-        },
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "3",
-            "dia_sem": "1",
-            "interc": "Todos os Meses",
-            "hora": "19:30 HRS",
-            "local": "CENTRAL JACIARA - MT",
-        },
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "3",
-            "dia_sem": "2",
-            "interc": "Todos os Meses",
-            "hora": "19:30 HRS",
-            "local": "JUSCIMEIRA - MT",
-        },
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "3",
-            "dia_sem": "3",
-            "interc": "Todos os Meses",
-            "hora": "19:30 HRS",
-            "local": "VILA PLANALTO - MT",
-        },
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "3",
-            "dia_sem": "5",
-            "interc": "Todos os Meses",
-            "hora": "19:30 HRS",
-            "local": "SANTO ANTONIO - MT",
-        },
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "4",
-            "dia_sem": "6",
-            "interc": "Todos os Meses",
-            "hora": "19:30 HRS",
-            "local": "DOM AQUINO - MT",
-        },
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "3",
-            "dia_sem": "4",
-            "interc": "Meses Ímpares",
-            "hora": "19:30 HRS",
-            "local": "ENTRE RIOS - MT",
-        },
-        {
-            "nome": "ENSAIO LOCAL",
-            "semana": "3",
-            "dia_sem": "6",
-            "interc": "Meses Pares",
-            "hora": "19:30 HRS",
-            "local": "DISTRITO DE CELMA - MT",
-        },
+        {"nome": "ENSAIO LOCAL", "semana": "1", "dia_sem": "6", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "SÃO PEDRO DA CIPA - MT"},
+        {"nome": "ENSAIO LOCAL", "semana": "2", "dia_sem": "5", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "SANTA ELVIRA - MT"},
+        {"nome": "ENSAIO LOCAL", "semana": "2", "dia_sem": "6", "interc": "Todos os Meses", "hora": "17:30 HRS", "local": "SÃO LOURENÇO DE FATIMA - MT"},
+        {"nome": "ENSAIO LOCAL", "semana": "2", "dia_sem": "0", "interc": "Todos os Meses", "hora": "16:30 HRS", "local": "JARDIM BOA ESPERANÇA - MT"},
+        {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "1", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "CENTRAL JACIARA - MT"},
+        {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "2", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "JUSCIMEIRA - MT"},
+        {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "3", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "VILA PLANALTO - MT"},
+        {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "5", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "SANTO ANTONIO - MT"},
+        {"nome": "ENSAIO LOCAL", "semana": "4", "dia_sem": "6", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "DOM AQUINO - MT"},
+        {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "4", "interc": "Meses Ímpares", "hora": "19:30 HRS", "local": "ENTRE RIOS - MT"},
+        {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "6", "interc": "Meses Pares", "hora": "19:30 HRS", "local": "DISTRITO DE CELMA - MT"},
     ]
 
-with st.expander("➕ Adicionar Novo Evento", expanded=True):
-    col1, col2 = st.columns(2)
-    with col1:
-        novo_nome = st.text_input("Nome", value="ENSAIO LOCAL")
-        novo_dia = st.selectbox("Dia da Semana", options=[0,1,2,3,4,5,6], format_func=lambda x: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][x], index=5)
-        novo_interc = st.selectbox("Repetição", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
-    with col2:
-        novo_local = st.text_input("Local", placeholder="Ex: Jaciara")
-        novo_semana = st.selectbox("Semana do Mês", options=["1", "2", "3", "4", "5"], index=0)
-        novo_hora = st.text_input("Hora", value="19:30 HRS")
+# --- SELETOR DE MODO (VISUALIZAÇÃO) ---
+modo = st.radio(
+    "Modo de Visualização:",
+    ["⚙️ Configuração / Gerar Arquivos", "🗓️ Visualizar Agenda Completa"],
+    horizontal=True
+)
+
+st.divider()
+
+if modo == "⚙️ Configuração / Gerar Arquivos":
+    st.write("Adicione eventos, confira a lista e gere os arquivos finais.")
     
-    if st.button("Adicionar Evento"):
-        item = {
-            "nome": novo_nome.upper(),
-            "local": novo_local.upper(),
-            "dia_sem": str(novo_dia),
-            "semana": novo_semana,
-            "hora": novo_hora.upper(),
-            "interc": novo_interc
-        }
-        st.session_state['eventos'].append(item)
-        st.success("✅ Evento Adicionado!")
+    # --- FORMULÁRIO DE ADIÇÃO ---
+    with st.expander("➕ Adicionar Novo Evento", expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            novo_nome = st.text_input("Nome", value="ENSAIO LOCAL")
+            novo_dia = st.selectbox("Dia da Semana", options=[0,1,2,3,4,5,6], format_func=lambda x: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][x], index=5)
+            novo_interc = st.selectbox("Repetição", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
+        with col2:
+            novo_local = st.text_input("Local", placeholder="Ex: Jaciara")
+            novo_semana = st.selectbox("Semana do Mês", options=["1", "2", "3", "4", "5"], index=0)
+            novo_hora = st.text_input("Hora", value="19:30 HRS")
+        
+        if st.button("Adicionar Evento"):
+            item = {
+                "nome": novo_nome.upper(),
+                "local": novo_local.upper(),
+                "dia_sem": str(novo_dia),
+                "semana": novo_semana,
+                "hora": novo_hora.upper(),
+                "interc": novo_interc
+            }
+            st.session_state['eventos'].append(item)
+            st.success("✅ Evento Adicionado!")
 
-st.subheader(f"📋 Lista de Eventos ({len(st.session_state['eventos'])})")
+    # --- LISTA DE EVENTOS ---
+    st.subheader(f"📋 Lista de Eventos Cadastrados ({len(st.session_state['eventos'])})")
 
-for i, evt in enumerate(st.session_state['eventos']):
-    dias_nomes = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"]
-    dia_desc = dias_nomes[int(evt['dia_sem'])]
+    for i, evt in enumerate(st.session_state['eventos']):
+        dia_desc = DIAS_SEMANA_CURTO[int(evt['dia_sem'])]
+        
+        with st.container():
+            col_a, col_b, col_c = st.columns([5, 2, 1])
+            with col_a:
+                st.markdown(f"**{evt['nome']}**")
+                st.text(f"{evt['local']} - {evt['hora']}")
+            with col_b:
+                st.info(f"{evt['semana']}ª {dia_desc} \n({evt['interc']})")
+            with col_c:
+                if st.button("🗑️", key=f"del_{i}"):
+                    st.session_state['eventos'].pop(i)
+                    st.rerun()
+        st.divider()
+
+    # --- BOTÕES DE DOWNLOAD ---
+    st.header("🚀 Gerar Arquivos Finais")
+    col_excel, col_pdf = st.columns(2)
+
+    with col_excel:
+        if st.button("📊 Gerar Excel"):
+            arquivo_excel = gerar_excel_buffer(ano_escolhido, st.session_state['eventos'], logo_data)
+            st.download_button(
+                label="⬇️ BAIXAR EXCEL",
+                data=arquivo_excel,
+                file_name=f"Calendario_CCB_{ano_escolhido}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
+    with col_pdf:
+        if st.button("📄 Gerar PDF"):
+            arquivo_pdf = gerar_pdf_buffer(ano_escolhido, st.session_state['eventos'])
+            st.download_button(
+                label="⬇️ BAIXAR PDF",
+                data=arquivo_pdf,
+                file_name=f"Calendario_CCB_{ano_escolhido}.pdf",
+                mime="application/pdf",
+            )
+
+else:
+    # --- MODO AGENDA (LISTA) ---
+    st.header(f"🗓️ Agenda Completa de {ano_escolhido}")
+    st.markdown("Lista cronológica de todos os eventos calculados para o ano.")
     
-    col_a, col_b, col_c = st.columns([4, 2, 1])
-    with col_a:
-        st.markdown(f"**{evt['nome']}** - {evt['local']}")
-        st.caption(f"{evt['hora']}")
-    with col_b:
-        st.text(f"{evt['semana']}ª {dia_desc}")
-        st.caption(evt['interc'])
-    with col_c:
-        if st.button("🗑️", key=f"del_{i}"):
-            st.session_state['eventos'].pop(i)
-            st.rerun()
-    st.divider()
-
-st.header("🚀 Gerar Arquivo")
-
-col_excel, col_pdf = st.columns(2)
-
-with col_excel:
-    if st.button("📊 Gerar Excel"):
-        arquivo_excel = gerar_excel_buffer(ano_escolhido, st.session_state['eventos'], logo_data)
-        st.download_button(
-            label="⬇️ BAIXAR EXCEL",
-            data=arquivo_excel,
-            file_name=f"Calendario_CCB_{ano_escolhido}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
-with col_pdf:
-    if st.button("📄 Gerar PDF"):
-        arquivo_pdf = gerar_pdf_buffer(ano_escolhido, st.session_state['eventos'])
-        st.download_button(
-            label="⬇️ BAIXAR PDF",
-            data=arquivo_pdf,
-            file_name=f"Calendario_CCB_{ano_escolhido}.pdf",
-            mime="application/pdf",
-        )
+    agenda = montar_agenda_ordenada(ano_escolhido, st.session_state['eventos'])
+    
+    if not agenda:
+        st.warning("Nenhum evento encontrado para os critérios cadastrados.")
+    else:
+        mes_atual = 0
+        for dt, texto in agenda:
+            # Agrupa visualmente por mês
+            if dt.month != mes_atual:
+                mes_atual = dt.month
+                st.markdown(f"### {NOMES_MESES[mes_atual].upper()}")
+                
+            dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
+            data_fmt = dt.strftime("%d/%m/%Y")
+            
+            with st.container():
+                col1, col2 = st.columns([2, 5])
+                with col1:
+                    st.markdown(f"**{data_fmt}**")
+                    st.caption(dia_semana)
+                with col2:
+                    st.write(texto)
+            st.divider()
