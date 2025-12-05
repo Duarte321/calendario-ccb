@@ -64,7 +64,7 @@ def gerar_link_google(dt, evt_data):
     local = quote(evt_data['local'])
     return f"https://calendar.google.com/calendar/r/eventedit?text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB"
 
-# ===== FUNÇÃO EXCEL (TODOS OS MESES, UMA ABA) =====
+# ===== FUNÇÃO EXCEL (COR AMARELA NOS EVENTOS) =====
 def gerar_excel_todos_meses(ano, lista_eventos):
     output = BytesIO()
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
@@ -72,9 +72,15 @@ def gerar_excel_todos_meses(ano, lista_eventos):
     
     header_mes = wb.add_format({'bold': True, 'font_size': 14, 'bg_color': '#1F4E5F', 'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 'border': 1})
     header_dias = wb.add_format({'bold': True, 'bg_color': '#1F4E5F', 'font_color': 'white', 'align': 'center', 'valign': 'vcenter', 'border': 1, 'font_size': 10})
-    cell_dia = wb.add_format({'border': 1, 'align': 'right', 'valign': 'top', 'font_size': 11, 'bold': True})
-    cell_evento = wb.add_format({'border': 1, 'align': 'left', 'valign': 'top', 'font_size': 8, 'text_wrap': True, 'bg_color': '#F0F8FF'})
-    cell_vazio = wb.add_format({'border': 1})
+    cell_dia = wb.add_format({'border': 1, 'align': 'left', 'valign': 'top', 'font_size': 10, 'bold': True})
+    
+    # Célula amarela para eventos
+    cell_evento = wb.add_format({
+        'border': 1, 'align': 'left', 'valign': 'top', 'font_size': 8, 
+        'text_wrap': True, 'bg_color': '#FFFF00', 'bold': True
+    })
+    
+    cell_vazio = wb.add_format({'border': 1, 'bg_color': '#E0E0E0'}) # Cinza para dias vazios (opcional, igual imagem)
     
     agenda = montar_agenda_ordenada(ano, lista_eventos)
     eventos_dict = {}
@@ -112,16 +118,19 @@ def gerar_excel_todos_meses(ano, lista_eventos):
                     else:
                         ws.write(current_row, col, dia, cell_dia)
             current_row += 1
+        
+        # Campo Anotações no Excel tbm
+        current_row += 1
+        ws.merge_range(current_row, 0, current_row, 6, "Anotações:", wb.add_format({'border': 1, 'align': 'left'}))
         current_row += 2
     
     wb.close()
     output.seek(0)
     return output
 
-# ===== FUNÇÃO PDF (GRID PERFEITO) =====
+# ===== FUNÇÃO PDF (COR AMARELA IGUAL IMAGEM) =====
 def gerar_pdf_calendario(ano, lista_eventos):
-    # Usa A4 Landscape (Horizontal) para ter mais espaço
-    pdf = FPDF(orientation='L', unit='mm', format='A4')
+    pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=False)
     
     agenda = montar_agenda_ordenada(ano, lista_eventos)
@@ -134,69 +143,85 @@ def gerar_pdf_calendario(ano, lista_eventos):
     for mes in range(1, 13):
         pdf.add_page()
         
-        # Título Mês
-        pdf.set_font("Arial", "B", 22)
-        pdf.set_text_color(31, 78, 95)
-        pdf.cell(0, 15, f"{NOMES_MESES[mes]} {ano}", 0, 1, 'C')
-        pdf.ln(5)
+        # --- CABEÇALHO ---
+        # Retângulo Azul Escuro Fundo Título
+        pdf.set_fill_color(31, 78, 95)
+        pdf.rect(10, 10, 190, 15, 'F')
         
-        # Configuração do Grid
+        # Texto Ano (Esquerda)
+        pdf.set_xy(10, 10)
+        pdf.set_font("Arial", "B", 16)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(20, 15, str(ano), 0, 0, 'C')
+        
+        # Texto Mês (Centro)
+        pdf.set_xy(30, 10)
+        pdf.cell(150, 15, NOMES_MESES[mes], 0, 0, 'C')
+        
+        pdf.ln(20)
+        
+        # --- GRID ---
         margin_left = 10
-        col_width = 38  # (297 - 20) / 7 ≈ 39
-        row_height = 30 
-        header_height = 10
+        col_width = 27.1  # (190mm / 7)
+        row_height = 30   # Altura das células
+        header_height = 8
         
-        # Cabeçalho Dias da Semana
-        pdf.set_font("Arial", "B", 10)
-        pdf.set_fill_color(31, 78, 95) # Azul Escuro
-        pdf.set_text_color(255, 255, 255) # Branco
+        # Dias da Semana
+        pdf.set_font("Arial", "B", 8)
+        pdf.set_fill_color(31, 78, 95)
+        pdf.set_text_color(255, 255, 255)
         
-        pdf.set_xy(margin_left, pdf.get_y())
+        pdf.set_x(margin_left)
         for dia in DIAS_SEMANA_CURTO:
             pdf.cell(col_width, header_height, dia, 1, 0, 'C', fill=True)
         pdf.ln(header_height)
         
         # Dias do Mês
         cal_matrix = calendar.monthcalendar(ano, mes)
-        pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Arial", "", 8)
-        
         y_start = pdf.get_y()
         
         for semana in cal_matrix:
             x_current = margin_left
-            
-            # Altura fixa para todas as células da linha
-            max_h = row_height
-            
             for dia in semana:
-                # Desenha o retângulo da célula PRIMEIRO
+                chave = f"{ano}-{mes}-{dia}"
+                
+                # Cor de fundo da célula
+                if dia == 0:
+                    pdf.set_fill_color(230, 230, 230) # Cinza claro para dias fora do mês
+                elif chave in eventos_dict:
+                    pdf.set_fill_color(255, 255, 0) # AMARELO VIVO (#FFFF00)
+                else:
+                    pdf.set_fill_color(255, 255, 255) # Branco
+                
+                # Desenha Célula
                 pdf.set_xy(x_current, y_start)
-                pdf.cell(col_width, max_h, '', 1) # Borda
+                pdf.cell(col_width, row_height, '', 1, 0, 'C', fill=True)
                 
                 if dia != 0:
-                    chave = f"{ano}-{mes}-{dia}"
-                    
-                    # Número do dia
+                    # Número do Dia
                     pdf.set_xy(x_current + 1, y_start + 1)
+                    pdf.set_text_color(0, 0, 0)
                     pdf.set_font("Arial", "B", 10)
                     pdf.cell(5, 5, str(dia), 0, 0)
                     
-                    # Eventos
+                    # Conteúdo do Evento
                     if chave in eventos_dict:
                         pdf.set_xy(x_current + 1, y_start + 6)
-                        pdf.set_font("Arial", "", 7)
-                        texto_evt = ""
+                        pdf.set_font("Arial", "B", 6) # Fonte menor e negrito
+                        texto = ""
                         for evt in eventos_dict[chave]:
-                            texto_evt += f"{evt['titulo']}\n{evt['local']}\n{evt['hora']}\n"
-                        
-                        # Imprime texto dentro da célula
-                        pdf.multi_cell(col_width - 2, 3.5, texto_evt, 0, 'L')
+                            texto += f"{evt['titulo']}\n{evt['local']}\n{evt['hora']}\n"
+                        pdf.multi_cell(col_width - 2, 3, texto, 0, 'L')
 
                 x_current += col_width
+            y_start += row_height
             
-            y_start += max_h # Vai para a próxima linha
-            
+        # --- CAMPO ANOTAÇÕES ---
+        pdf.set_xy(margin_left, 260) # Perto do rodapé
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(190, 6, "Anotacoes:", "LTR", 1, 'L')
+        pdf.cell(190, 15, "", "LBR", 1, 'L')
+
     try:
         val = pdf.output(dest='S')
         if isinstance(val, str): return val.encode('latin-1')
