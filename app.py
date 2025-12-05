@@ -8,8 +8,8 @@ from fpdf import FPDF
 # ==========================================
 # 1. LÓGICA DO CALENDÁRIO
 # ==========================================
-NOMES_MESES = {1: "janeiro", 2: "fevereiro", 3: "março", 4: "abril", 5: "maio", 6: "junho", 7: "julho", 8: "agosto", 9: "setembro", 10: "outubro", 11: "novembro", 12: "dezembro"}
-DIAS_SEMANA_PT = ["DOMINGO", "SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA", "SÁBADO"]
+NOMES_MESES = {1: "JANEIRO", 2: "FEVEREIRO", 3: "MARÇO", 4: "ABRIL", 5: "MAIO", 6: "JUNHO", 7: "JULHO", 8: "AGOSTO", 9: "SETEMBRO", 10: "OUTUBRO", 11: "NOVEMBRO", 12: "DEZEMBRO"}
+DIAS_SEMANA_PT = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"]
 DIAS_SEMANA_CURTO = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"]
 
 def calcular_eventos(ano, lista_eventos):
@@ -194,95 +194,150 @@ def gerar_pdf_buffer(ano, lista_eventos):
 # ==========================================
 # 2. INTERFACE DO APP (STREAMLIT)
 # ==========================================
-st.set_page_config(page_title="Agenda CCB Jaciara", page_icon="📅", layout="wide")
+st.set_page_config(page_title="Agenda CCB Jaciara", page_icon="📅", layout="centered")
 
-# Custom CSS
+# CSS APRIMORADO PARA VISUAL "PREMIUM CLEAN"
 st.markdown("""
 <style>
+    /* Ajuste geral de fundo */
+    .stApp {
+        background-color: #f8f9fa;
+    }
     .block-container {
-        padding-top: 2rem;
-        padding-bottom: 5rem;
+        padding-top: 1.5rem;
+        padding-bottom: 4rem;
+        max-width: 800px;
     }
+
+    /* Estilo dos Cartões de Evento */
     .agenda-card {
-        background-color: #ffffff;
-        border-left: 5px solid #1F4E5F;
-        padding: 18px;
-        border-radius: 8px;
-        margin-bottom: 14px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        transition: all 0.3s ease;
-        cursor: default;
+        background-color: white;
+        border-radius: 12px;
+        padding: 0;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        border: 1px solid #e0e0e0;
+        display: flex;
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+    
     .agenda-card:hover {
-        transform: scale(1.02);
-        box-shadow: 0 8px 15px rgba(0,0,0,0.15);
-        border-left: 5px solid #00B4D8;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
     }
-    .agenda-dia {
-        font-size: 28px;
+
+    /* Coluna da Esquerda (Data) */
+    .card-date-col {
+        background-color: #F0F4F8; /* Cinza azulado bem claro */
+        width: 85px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border-right: 1px solid #e0e0e0;
+        padding: 10px;
+    }
+
+    .date-number {
+        font-size: 26px;
         font-weight: 800;
         color: #1F4E5F;
-        text-align: center;
         line-height: 1;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    .agenda-sem {
-        font-size: 11px;
-        color: #888;
-        text-align: center;
+
+    .date-month {
+        font-size: 10px;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-top: 2px;
+        color: #666;
+        margin-top: 4px;
     }
-    .agenda-titulo {
-        font-weight: 700;
+
+    /* Coluna da Direita (Conteúdo) */
+    .card-content-col {
+        padding: 16px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    /* Badge do Dia da Semana */
+    .weekday-badge {
+        display: inline-block;
+        background-color: #1F4E5F;
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        padding: 3px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+        width: fit-content;
+    }
+
+    .event-title {
         font-size: 16px;
+        font-weight: 700;
         color: #222;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
+        line-height: 1.3;
     }
-    .agenda-local {
-        color: #555;
-        font-size: 14px;
+
+    .event-meta {
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 12px;
+        font-size: 13px;
+        color: #555;
     }
-    .agenda-hora {
-        color: #1F4E5F;
-        font-weight: 600;
-        font-size: 14px;
-        margin-top: 4px;
-        background-color: #eef6f8;
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 12px;
+
+    .event-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
     }
-    .mes-header {
+
+    /* Divisor de Mês */
+    .month-divider {
+        display: flex;
+        align-items: center;
+        margin: 30px 0 15px 0;
+    }
+    
+    .month-label {
+        background-color: #1F4E5F;
         color: white;
-        background: linear-gradient(90deg, #1F4E5F 0%, #2c6e85 100%);
-        padding: 12px;
-        border-radius: 6px;
-        margin-top: 30px;
-        margin-bottom: 15px;
-        text-align: center;
-        font-size: 18px;
-        font-weight: 700;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        font-size: 14px;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     }
+    
+    .month-line {
+        flex-grow: 1;
+        height: 2px;
+        background-color: #e0e0e0;
+        margin-left: 12px;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📅 Ensaios Locais da Microrregião Jaciara - MT")
+# Título Principal
+st.markdown("<h2 style='text-align: center; color: #1F4E5F; margin-bottom: 25px;'>📅 Agenda CCB Jaciara - MT</h2>", unsafe_allow_html=True)
 
-# --- SIDEBAR (Configurações visíveis para Admin) ---
+# --- SIDEBAR ---
 with st.sidebar:
-    st.header("Painel")
-    ano_escolhido = st.number_input("Ano do Calendário", value=date.today().year + 1, step=1)
-    uploaded_file = st.file_uploader("Escolher Logo (Opcional)", type=['jpg', 'png'])
+    st.header("Painel de Controle")
+    ano_escolhido = st.number_input("Ano", value=date.today().year + 1, step=1)
+    uploaded_file = st.file_uploader("Logo (Opcional)", type=['jpg', 'png'])
     logo_data = uploaded_file.getvalue() if uploaded_file else None
 
+# Inicialização de Dados
 if 'eventos' not in st.session_state:
     st.session_state['eventos'] = [
         {"nome": "ENSAIO LOCAL", "semana": "1", "dia_sem": "6", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "SÃO PEDRO DA CIPA - MT"},
@@ -298,95 +353,109 @@ if 'eventos' not in st.session_state:
         {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "6", "interc": "Meses Pares", "hora": "19:30 HRS", "local": "DISTRITO DE CELMA - MT"},
     ]
 
-# --- SELETOR DE MODO COM SENHA ---
-modo = st.radio("Modo de Visualização:", ["🗓️ Visualizar Agenda Completa", "🔐 Configuração (Admin)"], horizontal=True)
+# --- SELETOR DE MODOS ---
+col_mode_1, col_mode_2 = st.columns(2)
+modo = st.radio("Menu de Acesso", ["Visualizar Agenda", "Área Administrativa"], horizontal=True, label_visibility="collapsed")
 
-st.divider()
+st.write("") # Espaçamento
 
-if modo == "🔐 Configuração (Admin)":
-    # Login Simples
-    senha = st.text_input("Digite a senha de administrador:", type="password")
+if modo == "Área Administrativa":
+    st.markdown("### 🔐 Acesso Restrito")
+    senha = st.text_input("Senha de Acesso", type="password", placeholder="Digite a senha do encarregado")
     
-    if senha == "ccb123":  # <-- SENHA DO ADMIN AQUI
-        st.success("Acesso Liberado!")
+    if senha == "ccb123":
+        st.success("Acesso Autorizado")
         
-        with st.expander("➕ Adicionar Novo Evento", expanded=True):
-            col1, col2 = st.columns(2)
-            with col1:
-                novo_nome = st.text_input("Nome", value="ENSAIO LOCAL")
-                novo_dia = st.selectbox("Dia da Semana", options=[0,1,2,3,4,5,6], format_func=lambda x: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][x], index=5)
-                novo_interc = st.selectbox("Repetição", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
-            with col2:
-                novo_local = st.text_input("Local", placeholder="Ex: Jaciara")
-                novo_semana = st.selectbox("Semana do Mês", options=["1", "2", "3", "4", "5"], index=0)
-                novo_hora = st.text_input("Hora", value="19:30 HRS")
+        with st.expander("➕ Cadastrar Novo Evento", expanded=False):
+            c1, c2 = st.columns(2)
+            with c1:
+                novo_nome = st.text_input("Descrição", value="ENSAIO LOCAL")
+                novo_dia = st.selectbox("Dia", options=[0,1,2,3,4,5,6], format_func=lambda x: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"][x], index=5)
+                novo_interc = st.selectbox("Frequência", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
+            with c2:
+                novo_local = st.text_input("Localidade", placeholder="Ex: Central Jaciara")
+                novo_semana = st.selectbox("Semana", options=["1", "2", "3", "4", "5"], index=0)
+                novo_hora = st.text_input("Horário", value="19:30 HRS")
             
-            if st.button("Adicionar Evento"):
+            if st.button("Salvar Evento", type="primary"):
                 item = {"nome": novo_nome.upper(), "local": novo_local.upper(), "dia_sem": str(novo_dia), "semana": novo_semana, "hora": novo_hora.upper(), "interc": novo_interc}
                 st.session_state['eventos'].append(item)
-                st.success("✅ Evento Adicionado!")
+                st.rerun()
 
-        st.subheader(f"📋 Lista de Eventos Cadastrados ({len(st.session_state['eventos'])})")
+        st.markdown("---")
+        st.subheader("Gerenciamento de Eventos")
+        
         for i, evt in enumerate(st.session_state['eventos']):
-            dia_desc = DIAS_SEMANA_CURTO[int(evt['dia_sem'])]
+            dia_txt = DIAS_SEMANA_CURTO[int(evt['dia_sem'])]
             with st.container():
-                col_a, col_b, col_c = st.columns([5, 2, 1])
-                with col_a:
-                    st.markdown(f"**{evt['nome']}**")
-                    st.text(f"{evt['local']} - {evt['hora']}")
-                with col_b:
-                    st.info(f"{evt['semana']}ª {dia_desc} \n({evt['interc']})")
-                with col_c:
-                    if st.button("🗑️", key=f"del_{i}"):
+                c_a, c_b = st.columns([5, 1])
+                with c_a:
+                    st.markdown(f"**{evt['nome']}** | {evt['local']}")
+                    st.caption(f"{evt['semana']}ª {dia_txt} - {evt['hora']} ({evt['interc']})")
+                with c_b:
+                    if st.button("Excluir", key=f"del_{i}"):
                         st.session_state['eventos'].pop(i)
                         st.rerun()
             st.divider()
 
-        st.header("🚀 Gerar Arquivos Finais")
-        col_excel, col_pdf = st.columns(2)
-        with col_excel:
-            if st.button("📊 Gerar Excel"):
-                arquivo_excel = gerar_excel_buffer(ano_escolhido, st.session_state['eventos'], logo_data)
-                st.download_button(label="⬇️ BAIXAR EXCEL", data=arquivo_excel, file_name=f"Calendario_CCB_{ano_escolhido}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        with col_pdf:
-            if st.button("📄 Gerar PDF"):
-                arquivo_pdf = gerar_pdf_buffer(ano_escolhido, st.session_state['eventos'])
-                st.download_button(label="⬇️ BAIXAR PDF", data=arquivo_pdf, file_name=f"Calendario_CCB_{ano_escolhido}.pdf", mime="application/pdf")
+        st.markdown("### 📥 Exportar Dados")
+        c_ex, c_pd = st.columns(2)
+        with c_ex:
+            if st.button("Baixar Excel"):
+                excel_data = gerar_excel_buffer(ano_escolhido, st.session_state['eventos'], logo_data)
+                st.download_button("Download .XLSX", excel_data, f"Agenda_{ano_escolhido}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        with c_pd:
+            if st.button("Baixar PDF"):
+                pdf_data = gerar_pdf_buffer(ano_escolhido, st.session_state['eventos'])
+                st.download_button("Download .PDF", pdf_data, f"Agenda_{ano_escolhido}.pdf", "application/pdf")
+
     elif senha:
-        st.error("Senha incorreta!")
-    else:
-        st.info("Por favor, digite a senha para acessar as configurações.")
+        st.error("Senha incorreta.")
 
 else:
-    # --- MODO AGENDA (PÚBLICO) ---
-    # Força o seletor para o topo, e a agenda aparece por padrão
-    st.header(f"🗓️ Agenda de Ensaios {ano_escolhido}")
+    # --- MODO AGENDA VISUAL ---
     agenda = montar_agenda_ordenada(ano_escolhido, st.session_state['eventos'])
     
     if not agenda:
-        st.warning("Nenhum evento encontrado para os critérios cadastrados.")
+        st.info("Nenhum evento agendado para este período.")
     else:
         mes_atual = 0
         for dt, evt_data in agenda:
+            # Cabeçalho do Mês
             if dt.month != mes_atual:
                 mes_atual = dt.month
-                st.markdown(f"<div class='mes-header'>{NOMES_MESES[mes_atual]}</div>", unsafe_allow_html=True)
+                nome_mes = NOMES_MESES[mes_atual]
+                st.markdown(f"""
+                <div class="month-divider">
+                    <div class="month-label">{nome_mes}</div>
+                    <div class="month-line"></div>
+                </div>
+                """, unsafe_allow_html=True)
             
             dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
             dia_num = dt.day
+            mes_abrev = NOMES_MESES[dt.month][:3]
             
+            # Cartão do Evento HTML/CSS
             st.markdown(f"""
             <div class="agenda-card">
-                <div style="display: flex; align-items: center;">
-                    <div style="width: 90px; flex-shrink: 0; border-right: 1px solid #eee; padding-right: 15px; margin-right: 15px; text-align: center;">
-                        <div class="agenda-dia">{dia_num}</div>
-                        <div class="agenda-sem">{dia_semana}</div>
-                    </div>
-                    <div style="flex-grow: 1;">
-                        <div class="agenda-titulo">{evt_data['titulo']}</div>
-                        <div class="agenda-local">📍 {evt_data['local']}</div>
-                        <div class="agenda-hora">🕒 {evt_data['hora']}</div>
+                <div class="card-date-col">
+                    <div class="date-number">{dia_num}</div>
+                    <div class="date-month">{mes_abrev}</div>
+                </div>
+                <div class="card-content-col">
+                    <div class="weekday-badge">{dia_semana}</div>
+                    <div class="event-title">{evt_data['titulo']}</div>
+                    <div class="event-meta">
+                        <div class="event-meta-item">
+                            <span>📍</span> {evt_data['local']}
+                        </div>
+                        <div class="event-meta-item">
+                            <span>🕒</span> {evt_data['hora']}
+                        </div>
                     </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
+        st.markdown("<br>enter><small style='color: #888;'>Deus seja louvado</small></center>", unsafe_allow_html=True)
