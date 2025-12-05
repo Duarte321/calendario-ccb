@@ -117,9 +117,8 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo=None):
     output.seek(0)
     return output
 
-# ===== CORREÇÃO DA FUNÇÃO PDF =====
 def gerar_pdf_buffer(ano, lista_eventos):
-    # 1. Configuração Explícita de Margens (10mm)
+    # 1. Configuração Segura (Margens e Tamanho)
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_margins(10, 10, 10)
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -128,7 +127,6 @@ def gerar_pdf_buffer(ano, lista_eventos):
     # Título
     pdf.set_font("Arial", "B", 20)
     pdf.set_text_color(31, 78, 95)
-    # cell(w=190) usa largura total segura
     pdf.cell(190, 15, f"CALENDARIO CCB JACIARA {ano}", 0, 1, 'C')
     
     pdf.set_font("Arial", "", 10)
@@ -151,11 +149,8 @@ def gerar_pdf_buffer(ano, lista_eventos):
             try: nome_mes = nome_mes.encode('latin-1', 'ignore').decode('latin-1')
             except: pass
             
-            # Força cursor no inicio
             pdf.set_x(10)
             pdf.cell(190, 8, f"  {nome_mes} {ano}", 0, 1, 'L', fill=True)
-            
-            # Linha
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(2)
             pdf.set_font("Arial", "", 10)
@@ -172,21 +167,25 @@ def gerar_pdf_buffer(ano, lista_eventos):
 
         texto = f"{dt.day:02d}/{dt.month:02d} ({dia_semana}) - {titulo} - {local} ({evt_data['hora']})"
         
-        # Força cursor no inicio antes de escrever
         pdf.set_x(10)
-        # Largura fixa de 190mm (210 - 10 - 10) evita o erro
+        # Largura fixa de 190mm para evitar erro de quebra de linha
         pdf.multi_cell(190, 6, texto, 0, 'L')
         
-        # Linha divisória
         y_end = pdf.get_y()
         pdf.set_draw_color(220, 220, 220)
         pdf.line(10, y_end, 200, y_end)
         pdf.set_draw_color(0, 0, 0)
 
-    val = pdf.output(dest='S')
-    if isinstance(val, str):
-        return val.encode('latin-1')
-    return val
+    # === CORREÇÃO FINAL E SEGURA PARA O STREAMLIT ===
+    try:
+        # Tenta obter a string (versões antigas do FPDF)
+        val = pdf.output(dest='S')
+        if isinstance(val, str):
+            return val.encode('latin-1')
+        return bytes(val) # Se for bytearray, converte
+    except:
+        # Fallback se dest='S' não for suportado
+        return bytes(pdf.output())
 
 # ==========================================
 # 2. VISUAL DO APP
@@ -291,39 +290,4 @@ elif st.session_state['nav'] == 'Admin':
         
         st.markdown("---")
         
-        with st.expander("➕ Cadastrar Novo Evento"):
-            with st.form("add"):
-                nome = st.text_input("Nome", "ENSAIO LOCAL")
-                local = st.text_input("Local")
-                dia = st.selectbox("Dia", [0,1,2,3,4,5,6], format_func=lambda x: DIAS_SEMANA_PT[x])
-                semana = st.selectbox("Semana", ["1","2","3","4","5"])
-                hora = st.text_input("Hora", "19:30 HRS")
-                interc = st.selectbox("Frequência", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
-                if st.form_submit_button("Salvar"):
-                    st.session_state['eventos'].append({"nome": nome.upper(), "local": local.upper(), "dia_sem": str(dia), "semana": semana, "hora": hora.upper(), "interc": interc})
-                    st.rerun()
-        
-        st.markdown("---")
-        st.markdown("#### 📋 Gerenciar Eventos")
-        for i, evt in enumerate(st.session_state['eventos']):
-            c_a, c_b = st.columns([4,1])
-            c_a.write(f"**{evt['local']}** - {evt['semana']}ª {DIAS_SEMANA_CURTO[int(evt['dia_sem'])]}")
-            if c_b.button("🗑️", key=f"d{i}"):
-                st.session_state['eventos'].pop(i)
-                st.rerun()
-        
-        st.markdown("---")
-        st.markdown("#### 📥 Baixar Arquivos")
-        c_exc, c_pdf = st.columns(2)
-        with c_exc:
-            st.write("**Excel (.xlsx)**")
-            d_excel = gerar_excel_buffer(st.session_state['ano_base'], st.session_state['eventos'], logo_data)
-            st.download_button("⬇️ Baixar Excel", d_excel, f"Calendario_{st.session_state['ano_base']}.xlsx", key="excel_btn")
-        with c_pdf:
-            st.write("**PDF (.pdf)**")
-            d_pdf = gerar_pdf_buffer(st.session_state['ano_base'], st.session_state['eventos'])
-            st.download_button("⬇️ Baixar PDF", d_pdf, f"Calendario_{st.session_state['ano_base']}.pdf", key="pdf_btn")
-
-    elif senha:
-        st.error("❌ Senha Incorreta")
-    st.markdown("</div>", unsafe_allow_html=True)
+        with st.expander
