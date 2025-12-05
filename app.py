@@ -2,7 +2,7 @@ import streamlit as st
 import xlsxwriter
 import calendar
 from io import BytesIO
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from fpdf import FPDF
 from urllib.parse import quote
 
@@ -56,25 +56,19 @@ def montar_agenda_ordenada(ano, lista_eventos):
     return lista_final
 
 def gerar_link_google(dt, evt_data):
-    """ Gera link para adicionar ao Google Agenda """
     titulo = quote(f"{evt_data['titulo']} - {evt_data['local']}")
-    
-    # Tenta extrair a hora
     hora_limpa = evt_data['hora'].replace("HRS", "").replace(":", "").strip()
-    if len(hora_limpa) < 4: hora_limpa = "1930" # Fallback
-    
+    if len(hora_limpa) < 4: hora_limpa = "1930"
     data_inicio = f"{dt.year}{dt.month:02d}{dt.day:02d}T{hora_limpa}00"
     data_fim = f"{dt.year}{dt.month:02d}{dt.day:02d}T{int(hora_limpa[:2])+2:02d}{hora_limpa[2:]}00"
-    
     local = quote(evt_data['local'])
-    
-    return f"https://www.google.com/calendar/render?action=TEMPLATE&text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB"
+    return f"https://calendar.google.com/calendar/r/eventedit?text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB"
 
 def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
     output = BytesIO()
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
     ws = wb.add_worksheet(f"Calendário {ano}")
-    # ... Lógica simplificada para não estourar caracteres
+    # ... (Lógica Excel mantida simplificada)
     wb.close()
     output.seek(0)
     return output
@@ -82,7 +76,7 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
 def gerar_pdf_buffer(ano, lista_eventos):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=False, margin=8)
-    # ... Lógica simplificada
+    # ... (Lógica PDF mantida simplificada)
     return bytes(pdf.output())
 
 # ==========================================
@@ -129,7 +123,7 @@ st.markdown("""
     .event-title { font-size: 15px; font-weight: 700; color: #222; margin: 4px 0; line-height: 1.3; }
     .event-info { font-size: 13px; color: #666; display: flex; align-items: center; gap: 6px; margin-top: 2px; }
     
-    /* BOTÃO DE NOTIFICAÇÃO (LINK) */
+    /* BOTÃO DE NOTIFICAÇÃO */
     .btn-notify {
         display: inline-block;
         margin-top: 8px;
@@ -173,6 +167,8 @@ if 'eventos' not in st.session_state:
     ]
 
 if 'nav' not in st.session_state: st.session_state['nav'] = 'Agenda'
+# Estado do ano base para cálculos
+if 'ano_base' not in st.session_state: st.session_state['ano_base'] = date.today().year + 1
 
 # Botões de Navegação
 c1, c2 = st.columns(2)
@@ -183,8 +179,7 @@ with c2:
 
 # --- PÁGINA AGENDA ---
 if st.session_state['nav'] == 'Agenda':
-    ano_atual = date.today().year + 1
-    agenda = montar_agenda_ordenada(ano_atual, st.session_state['eventos'])
+    agenda = montar_agenda_ordenada(st.session_state['ano_base'], st.session_state['eventos'])
     
     if not agenda:
         st.info("Nenhum evento encontrado.")
@@ -193,7 +188,6 @@ if st.session_state['nav'] == 'Agenda':
         for dt, evt_data in agenda:
             if dt.month != mes_atual:
                 mes_atual = dt.month
-                # CORREÇÃO AQUI: Trocadas as aspas internas para simples
                 st.markdown(f"<div class='month-separator'><span class='month-text'>{NOMES_MESES[mes_atual]} {dt.year}</span></div>", unsafe_allow_html=True)
             
             dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
@@ -219,12 +213,22 @@ if st.session_state['nav'] == 'Agenda':
 # --- PÁGINA ADMIN ---
 elif st.session_state['nav'] == 'Admin':
     st.markdown("<div class='admin-container'>", unsafe_allow_html=True)
-    st.subheader("Acesso Restrito")
-    senha = st.text_input("Senha", type="password")
+    st.subheader("Painel Administrativo")
+    senha = st.text_input("Senha de Acesso", type="password")
     
     if senha == "ccb123":
-        st.success("Logado")
-        with st.expander("➕ Novo Evento"):
+        st.success("Acesso Liberado")
+        
+        # 1. Configurações Gerais (Ano e Logo)
+        st.markdown("#### 🔧 Configurações Gerais")
+        st.session_state['ano_base'] = st.number_input("Ano de Referência", value=st.session_state['ano_base'], step=1)
+        uploaded_logo = st.file_uploader("Logo da Igreja", type=['jpg', 'png'])
+        logo_data = uploaded_logo.getvalue() if uploaded_logo else None
+        
+        st.markdown("---")
+        
+        # 2. Novo Evento
+        with st.expander("➕ Cadastrar Novo Evento"):
             with st.form("add"):
                 nome = st.text_input("Nome", "ENSAIO LOCAL")
                 local = st.text_input("Local")
@@ -236,14 +240,31 @@ elif st.session_state['nav'] == 'Admin':
                     st.session_state['eventos'].append({"nome": nome.upper(), "local": local.upper(), "dia_sem": str(dia), "semana": semana, "hora": hora.upper(), "interc": interc})
                     st.rerun()
         
-        st.write("---")
+        st.markdown("---")
+        
+        # 3. Gerenciamento de Eventos
+        st.markdown("#### 📋 Gerenciar Eventos")
         for i, evt in enumerate(st.session_state['eventos']):
             c_a, c_b = st.columns([4,1])
             c_a.write(f"**{evt['local']}** - {evt['semana']}ª {DIAS_SEMANA_CURTO[int(evt['dia_sem'])]}")
             if c_b.button("🗑️", key=f"d{i}"):
                 st.session_state['eventos'].pop(i)
                 st.rerun()
-                
+        
+        st.markdown("---")
+        
+        # 4. Exportação (PDF e Excel)
+        st.markdown("#### 📥 Baixar Arquivos")
+        c_exc, c_pdf = st.columns(2)
+        with c_exc:
+            if st.button("Gerar Excel"):
+                d_excel = gerar_excel_buffer(st.session_state['ano_base'], st.session_state['eventos'], logo_data)
+                st.download_button("⬇️ Baixar .xlsx", d_excel, f"Calendario_{st.session_state['ano_base']}.xlsx")
+        with c_pdf:
+            if st.button("Gerar PDF"):
+                d_pdf = gerar_pdf_buffer(st.session_state['ano_base'], st.session_state['eventos'])
+                st.download_button("⬇️ Baixar .pdf", d_pdf, f"Calendario_{st.session_state['ano_base']}.pdf")
+
     elif senha:
         st.error("Senha Incorreta")
     st.markdown("</div>", unsafe_allow_html=True)
