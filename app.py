@@ -82,7 +82,6 @@ def gerar_excel_buffer(ano, lista_eventos, uploaded_logo):
     fmt_logo_celula = wb.add_format({'align': 'center', 'valign': 'vcenter', 'border': 1})
 
     dados_agenda = calcular_eventos(ano, lista_eventos)
-    # Converter o formato novo de dados para texto simples pro Excel
     dados_simples = {}
     for k, v_list in dados_agenda.items():
         textos = [f"{x['titulo']} {x['local']} - {x['hora']}" for x in v_list]
@@ -199,55 +198,97 @@ def gerar_pdf_buffer(ano, lista_eventos):
 # ==========================================
 st.set_page_config(page_title="Gerador CCB", page_icon="📅", layout="wide")
 
-# Custom CSS para deixar bonito
+# Custom CSS Elegante com Efeito Hover (Zoom + Sombra)
 st.markdown("""
 <style>
-    .agenda-card {
-        background-color: #f8f9fa;
-        border-left: 5px solid #1F4E5F;
-        padding: 15px;
-        border-radius: 5px;
-        margin-bottom: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    /* Fundo geral mais clean */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 5rem;
     }
+
+    /* Cartão com design moderno e transição suave */
+    .agenda-card {
+        background-color: #ffffff;
+        border-left: 5px solid #1F4E5F;
+        padding: 18px;
+        border-radius: 8px;
+        margin-bottom: 14px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        transition: all 0.3s ease; /* Animação suave */
+        cursor: default;
+    }
+
+    /* Efeito Hover (Ao passar o mouse ou tocar) */
+    .agenda-card:hover {
+        transform: scale(1.02); /* Zoom leve (2%) */
+        box-shadow: 0 8px 15px rgba(0,0,0,0.15); /* Sombra mais forte */
+        border-left: 5px solid #00B4D8; /* Muda a cor da borda lateral */
+    }
+
+    /* Dia grande em destaque */
     .agenda-dia {
-        font-size: 24px;
-        font-weight: bold;
+        font-size: 28px;
+        font-weight: 800;
         color: #1F4E5F;
         text-align: center;
         line-height: 1;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
+
+    /* Dia da semana */
     .agenda-sem {
-        font-size: 12px;
-        color: #666;
+        font-size: 11px;
+        color: #888;
         text-align: center;
         text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-top: 2px;
     }
+
+    /* Título do evento */
     .agenda-titulo {
-        font-weight: bold;
+        font-weight: 700;
         font-size: 16px;
-        color: #000;
+        color: #222;
+        margin-bottom: 4px;
     }
+
+    /* Local */
     .agenda-local {
-        color: #333;
+        color: #555;
         font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
     }
+
+    /* Horário em destaque */
     .agenda-hora {
         color: #1F4E5F;
-        font-weight: bold;
+        font-weight: 600;
         font-size: 14px;
+        margin-top: 4px;
+        background-color: #eef6f8;
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
     }
+
+    /* Cabeçalho do Mês com gradiente sutil */
     .mes-header {
         color: white;
-        background-color: #1F4E5F;
-        padding: 10px;
-        border-radius: 5px;
-        margin-top: 20px;
-        margin-bottom: 10px;
+        background: linear-gradient(90deg, #1F4E5F 0%, #2c6e85 100%);
+        padding: 12px;
+        border-radius: 6px;
+        margin-top: 30px;
+        margin-bottom: 15px;
         text-align: center;
-        font-size: 20px;
-        font-weight: bold;
+        font-size: 18px;
+        font-weight: 700;
         text-transform: uppercase;
+        letter-spacing: 1.5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -341,11 +382,10 @@ else:
             dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
             dia_num = dt.day
             
-            # Card HTML estilizado
             st.markdown(f"""
             <div class="agenda-card">
                 <div style="display: flex; align-items: center;">
-                    <div style="width: 80px; flex-shrink: 0; border-right: 1px solid #ddd; padding-right: 10px; margin-right: 15px;">
+                    <div style="width: 90px; flex-shrink: 0; border-right: 1px solid #eee; padding-right: 15px; margin-right: 15px; text-align: center;">
                         <div class="agenda-dia">{dia_num}</div>
                         <div class="agenda-sem">{dia_semana}</div>
                     </div>
