@@ -56,23 +56,16 @@ def montar_agenda_ordenada(ano, lista_eventos):
     return lista_final
 
 def gerar_link_google(dt, evt_data):
-    """ Gera link compatível mobile para Google Agenda (Formato Universal) """
     titulo = quote(f"{evt_data['titulo']} - {evt_data['local']}")
-    
-    # Formata a hora para o padrão HHMM (Ex: 1930)
     hora_limpa = evt_data['hora'].replace("HRS", "").replace(":", "").strip()
-    if len(hora_limpa) < 4: hora_limpa = "1930" # Fallback
-    
+    if len(hora_limpa) < 4: hora_limpa = "1930"
     data_inicio = f"{dt.year}{dt.month:02d}{dt.day:02d}T{hora_limpa}00"
     data_fim = f"{dt.year}{dt.month:02d}{dt.day:02d}T{int(hora_limpa[:2])+2:02d}{hora_limpa[2:]}00"
-    
     local = quote(evt_data['local'])
-    
-    # Link simplificado render?action=TEMPLATE funciona melhor em apps nativos
-    return f"https://www.google.com/calendar/render?action=TEMPLATE&text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB&sf=true&output=xml"
+    return f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB&sf=true&output=xml"
 
-# ===== FUNÇÃO EXCEL (COR AMARELA NOS EVENTOS) =====
-def gerar_excel_todos_meses(ano, lista_eventos):
+# ===== FUNÇÃO EXCEL (COM AVISOS) =====
+def gerar_excel_todos_meses(ano, lista_eventos, avisos):
     output = BytesIO()
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
     ws = wb.add_worksheet("Calendário")
@@ -84,6 +77,11 @@ def gerar_excel_todos_meses(ano, lista_eventos):
     cell_evento = wb.add_format({
         'border': 1, 'align': 'left', 'valign': 'top', 'font_size': 8, 
         'text_wrap': True, 'bg_color': '#FFFF00', 'bold': True
+    })
+    
+    cell_aviso = wb.add_format({
+        'border': 1, 'align': 'left', 'valign': 'top', 'font_size': 10, 
+        'text_wrap': True, 'bg_color': '#FFCDD2', 'bold': True, 'font_color': '#B71C1C'
     })
     
     cell_vazio = wb.add_format({'border': 1, 'bg_color': '#E0E0E0'})
@@ -125,16 +123,21 @@ def gerar_excel_todos_meses(ano, lista_eventos):
                         ws.write(current_row, col, dia, cell_dia)
             current_row += 1
         
+        # Campo Anotações com o Aviso do Mês
+        aviso_mes = avisos.get(mes, "")
+        texto_anotacao = f"Anotações: {aviso_mes}"
+        
         current_row += 1
-        ws.merge_range(current_row, 0, current_row, 6, "Anotações:", wb.add_format({'border': 1, 'align': 'left'}))
+        ws.merge_range(current_row, 0, current_row, 6, texto_anotacao, 
+                       cell_aviso if aviso_mes else wb.add_format({'border': 1, 'align': 'left'}))
         current_row += 2
     
     wb.close()
     output.seek(0)
     return output
 
-# ===== FUNÇÃO PDF (COR AMARELA E GRID PERFEITO) =====
-def gerar_pdf_calendario(ano, lista_eventos):
+# ===== FUNÇÃO PDF (COM AVISOS) =====
+def gerar_pdf_calendario(ano, lista_eventos, avisos):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=False)
     
@@ -148,7 +151,6 @@ def gerar_pdf_calendario(ano, lista_eventos):
     for mes in range(1, 13):
         pdf.add_page()
         
-        # Cabeçalho Mês
         pdf.set_fill_color(31, 78, 95)
         pdf.rect(10, 10, 190, 15, 'F')
         
@@ -167,7 +169,6 @@ def gerar_pdf_calendario(ano, lista_eventos):
         row_height = 30
         header_height = 8
         
-        # Cabeçalho Dias da Semana
         pdf.set_font("Arial", "B", 8)
         pdf.set_fill_color(31, 78, 95)
         pdf.set_text_color(255, 255, 255)
@@ -185,26 +186,22 @@ def gerar_pdf_calendario(ano, lista_eventos):
             for dia in semana:
                 chave = f"{ano}-{mes}-{dia}"
                 
-                # Cores das células
                 if dia == 0:
                     pdf.set_fill_color(230, 230, 230)
                 elif chave in eventos_dict:
-                    pdf.set_fill_color(255, 255, 0) # AMARELO VIVO
+                    pdf.set_fill_color(255, 255, 0)
                 else:
                     pdf.set_fill_color(255, 255, 255)
                 
-                # Desenha Retângulo
                 pdf.set_xy(x_current, y_start)
                 pdf.cell(col_width, row_height, '', 1, 0, 'C', fill=True)
                 
                 if dia != 0:
-                    # Dia
                     pdf.set_xy(x_current + 1, y_start + 1)
                     pdf.set_text_color(0, 0, 0)
                     pdf.set_font("Arial", "B", 10)
                     pdf.cell(5, 5, str(dia), 0, 0)
                     
-                    # Eventos
                     if chave in eventos_dict:
                         pdf.set_xy(x_current + 1, y_start + 6)
                         pdf.set_font("Arial", "B", 6)
@@ -216,11 +213,24 @@ def gerar_pdf_calendario(ano, lista_eventos):
                 x_current += col_width
             y_start += row_height
             
-        # Anotações
+        # Anotações / Avisos
+        aviso_mes = avisos.get(mes, "")
+        
         pdf.set_xy(margin_left, 260)
         pdf.set_font("Arial", "B", 10)
-        pdf.cell(190, 6, "Anotacoes:", "LTR", 1, 'L')
-        pdf.cell(190, 15, "", "LBR", 1, 'L')
+        pdf.set_text_color(0, 0, 0)
+        
+        # Se tiver aviso, pinta de vermelho claro pra destacar
+        if aviso_mes:
+            pdf.set_fill_color(255, 230, 230) # Vermelho claro
+            pdf.cell(190, 6, "Anotacoes / Avisos Importantes:", "LTR", 1, 'L', fill=True)
+            pdf.set_font("Arial", "B", 11)
+            pdf.set_text_color(180, 0, 0) # Texto vermelho escuro
+            pdf.multi_cell(190, 15, aviso_mes, "LBR", 'L', fill=True)
+        else:
+            pdf.set_fill_color(255, 255, 255)
+            pdf.cell(190, 6, "Anotacoes:", "LTR", 1, 'L')
+            pdf.cell(190, 15, "", "LBR", 1, 'L')
 
     try:
         val = pdf.output(dest='S')
@@ -265,12 +275,28 @@ st.markdown("""
         display: inline-block;
     }
     
+    /* Estilo para o Aviso no App */
+    .aviso-card {
+        background-color: #FFEBEE;
+        border-left: 5px solid #D32F2F;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        color: #B71C1C;
+        font-weight: bold;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
     .admin-container { background: white; padding: 20px; border-radius: 12px; margin-top: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="app-header"><h1>AGENDA CCB JACIARA</h1></div><div class="header-spacer"></div>', unsafe_allow_html=True)
 
+# --- DADOS INICIAIS ---
 if 'eventos' not in st.session_state:
     st.session_state['eventos'] = [
         {"nome": "ENSAIO LOCAL", "semana": "1", "dia_sem": "6", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "SÃO PEDRO DA CIPA - MT"},
@@ -285,6 +311,10 @@ if 'eventos' not in st.session_state:
         {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "4", "interc": "Meses Ímpares", "hora": "19:30 HRS", "local": "ENTRE RIOS - MT"},
         {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "6", "interc": "Meses Pares", "hora": "19:30 HRS", "local": "DISTRITO DE CELMA - MT"},
     ]
+
+# --- NOVO ESTADO PARA AVISOS ---
+if 'avisos' not in st.session_state:
+    st.session_state['avisos'] = {} # Ex: {1: "Aviso Janeiro", 5: "Aviso Maio"}
 
 if 'nav' not in st.session_state: st.session_state['nav'] = 'Agenda'
 if 'ano_base' not in st.session_state: st.session_state['ano_base'] = date.today().year + 1
@@ -305,6 +335,16 @@ if st.session_state['nav'] == 'Agenda':
             if dt.month != mes_atual:
                 mes_atual = dt.month
                 st.markdown(f"<div class='month-separator'><span class='month-text'>{NOMES_MESES[mes_atual]} {dt.year}</span></div>", unsafe_allow_html=True)
+                
+                # --- EXIBIR AVISO SE HOUVER ---
+                if mes_atual in st.session_state['avisos'] and st.session_state['avisos'][mes_atual]:
+                    aviso = st.session_state['avisos'][mes_atual]
+                    st.markdown(f"""
+                    <div class="aviso-card">
+                        <span>⚠️</span>
+                        <span>{aviso}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
             
             dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
             mes_abrev = NOMES_MESES[dt.month][:3]
@@ -340,7 +380,10 @@ elif st.session_state['nav'] == 'Admin':
         
         st.markdown("---")
         
-        with st.expander("➕ Cadastrar Novo Evento"):
+        # --- NOVA ABA DE AVISOS ---
+        abas = st.tabs(["➕ Novo Evento", "📝 Avisos/Observações", "📋 Gerenciar Eventos", "📥 Baixar Arquivos"])
+        
+        with abas[0]: # Novo Evento
             with st.form("add"):
                 nome = st.text_input("Nome", "ENSAIO LOCAL")
                 local = st.text_input("Local")
@@ -348,25 +391,41 @@ elif st.session_state['nav'] == 'Admin':
                 semana = st.selectbox("Semana", ["1","2","3","4","5"])
                 hora = st.text_input("Hora", "19:30 HRS")
                 interc = st.selectbox("Frequência", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
-                if st.form_submit_button("Salvar"):
+                if st.form_submit_button("Salvar Evento"):
                     st.session_state['eventos'].append({"nome": nome.upper(), "local": local.upper(), "dia_sem": str(dia), "semana": semana, "hora": hora.upper(), "interc": interc})
                     st.rerun()
         
-        st.markdown("---")
-        st.markdown("#### 📋 Gerenciar Eventos")
-        for i, evt in enumerate(st.session_state['eventos']):
-            c_a, c_b = st.columns([4,1])
-            c_a.write(f"**{evt['local']}** - {evt['semana']}ª {DIAS_SEMANA_CURTO[int(evt['dia_sem'])]}")
-            if c_b.button("🗑️", key=f"d{i}"):
-                st.session_state['eventos'].pop(i)
+        with abas[1]: # Avisos
+            st.markdown("Adicione observações importantes para aparecerem no mês (ex: Mudança de data).")
+            mes_aviso = st.selectbox("Escolha o Mês", range(1, 13), format_func=lambda x: NOMES_MESES[x])
+            
+            # Carrega aviso existente
+            texto_atual = st.session_state['avisos'].get(mes_aviso, "")
+            novo_aviso = st.text_area("Texto do Aviso", value=texto_atual, height=100)
+            
+            c_salvar, c_limpar = st.columns(2)
+            if c_salvar.button("Salvar Aviso"):
+                st.session_state['avisos'][mes_aviso] = novo_aviso
+                st.success(f"Aviso de {NOMES_MESES[mes_aviso]} salvo!")
                 st.rerun()
+            
+            if c_limpar.button("🗑️ Apagar Aviso"):
+                if mes_aviso in st.session_state['avisos']:
+                    del st.session_state['avisos'][mes_aviso]
+                    st.success("Aviso removido.")
+                    st.rerun()
+
+        with abas[2]: # Gerenciar
+            for i, evt in enumerate(st.session_state['eventos']):
+                c_a, c_b = st.columns([4,1])
+                c_a.write(f"**{evt['local']}** - {evt['semana']}ª {DIAS_SEMANA_CURTO[int(evt['dia_sem'])]}")
+                if c_b.button("🗑️", key=f"d{i}"):
+                    st.session_state['eventos'].pop(i)
+                    st.rerun()
         
-        st.markdown("---")
-        st.markdown("#### 📥 Baixar Arquivos")
-        c_exc, c_pdf = st.columns(2)
-        with c_exc:
+        with abas[3]: # Baixar
             st.write("**Calendário Excel (.xlsx)**")
-            d_excel = gerar_excel_todos_meses(st.session_state['ano_base'], st.session_state['eventos'])
+            d_excel = gerar_excel_todos_meses(st.session_state['ano_base'], st.session_state['eventos'], st.session_state['avisos'])
             st.download_button(
                 label="⬇️ Baixar Excel",
                 data=d_excel,
@@ -374,9 +433,9 @@ elif st.session_state['nav'] == 'Admin':
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 key="excel_btn"
             )
-        with c_pdf:
+            
             st.write("**Calendário PDF (.pdf)**")
-            d_pdf = gerar_pdf_calendario(st.session_state['ano_base'], st.session_state['eventos'])
+            d_pdf = gerar_pdf_calendario(st.session_state['ano_base'], st.session_state['eventos'], st.session_state['avisos'])
             st.download_button(
                 label="⬇️ Baixar PDF",
                 data=d_pdf,
