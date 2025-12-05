@@ -126,7 +126,7 @@ def gerar_excel_todos_meses(ano, lista_eventos):
     output.seek(0)
     return output
 
-# ===== FUNÇÃO PDF (COR AMARELA IGUAL IMAGEM) =====
+# ===== FUNÇÃO PDF (COR AMARELA E GRID PERFEITO) =====
 def gerar_pdf_calendario(ano, lista_eventos):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=False)
@@ -141,6 +141,7 @@ def gerar_pdf_calendario(ano, lista_eventos):
     for mes in range(1, 13):
         pdf.add_page()
         
+        # Cabeçalho Mês
         pdf.set_fill_color(31, 78, 95)
         pdf.rect(10, 10, 190, 15, 'F')
         
@@ -159,6 +160,7 @@ def gerar_pdf_calendario(ano, lista_eventos):
         row_height = 30
         header_height = 8
         
+        # Cabeçalho Dias da Semana
         pdf.set_font("Arial", "B", 8)
         pdf.set_fill_color(31, 78, 95)
         pdf.set_text_color(255, 255, 255)
@@ -176,22 +178,26 @@ def gerar_pdf_calendario(ano, lista_eventos):
             for dia in semana:
                 chave = f"{ano}-{mes}-{dia}"
                 
+                # Cores das células
                 if dia == 0:
                     pdf.set_fill_color(230, 230, 230)
                 elif chave in eventos_dict:
-                    pdf.set_fill_color(255, 255, 0)
+                    pdf.set_fill_color(255, 255, 0) # AMARELO VIVO
                 else:
                     pdf.set_fill_color(255, 255, 255)
                 
+                # Desenha Retângulo
                 pdf.set_xy(x_current, y_start)
                 pdf.cell(col_width, row_height, '', 1, 0, 'C', fill=True)
                 
                 if dia != 0:
+                    # Dia
                     pdf.set_xy(x_current + 1, y_start + 1)
                     pdf.set_text_color(0, 0, 0)
                     pdf.set_font("Arial", "B", 10)
                     pdf.cell(5, 5, str(dia), 0, 0)
                     
+                    # Eventos
                     if chave in eventos_dict:
                         pdf.set_xy(x_current + 1, y_start + 6)
                         pdf.set_font("Arial", "B", 6)
@@ -203,6 +209,7 @@ def gerar_pdf_calendario(ano, lista_eventos):
                 x_current += col_width
             y_start += row_height
             
+        # Anotações
         pdf.set_xy(margin_left, 260)
         pdf.set_font("Arial", "B", 10)
         pdf.cell(190, 6, "Anotacoes:", "LTR", 1, 'L')
@@ -239,15 +246,14 @@ st.markdown("""
     .btn-notify { display: inline-block; margin-top: 8px; background-color: #eef6f8; color: #1F4E5F; font-size: 11px; font-weight: bold; padding: 6px 12px; border-radius: 20px; text-decoration: none; border: 1px solid #dbebf0; }
     .btn-notify:hover { background-color: #1F4E5F; color: white; border-color: #1F4E5F; }
     
-    /* AQUI ESTÁ O AJUSTE: FONTE GRANDE PARA O MÊS */
     .month-separator { margin: 35px 0 20px 0; padding-left: 5px; }
     .month-text { 
-        font-size: 24px !important; /* Fonte bem maior */
+        font-size: 24px !important; 
         font-weight: 900 !important; 
-        color: #1F4E5F !important; /* Azul escuro bonito */
+        color: #1F4E5F !important; 
         text-transform: uppercase; 
         letter-spacing: 1.5px; 
-        border-bottom: 3px solid #A0C1D1; /* Linha decorativa embaixo */
+        border-bottom: 3px solid #A0C1D1; 
         padding-bottom: 5px;
         display: inline-block;
     }
@@ -354,11 +360,23 @@ elif st.session_state['nav'] == 'Admin':
         with c_exc:
             st.write("**Calendário Excel (.xlsx)**")
             d_excel = gerar_excel_todos_meses(st.session_state['ano_base'], st.session_state['eventos'])
-            st.download_button("⬇️ Baixar Excel", d_excel, f"Calendario_{st.session_state['ano_base']}.xlsx", key="excel_btn")
+            st.download_button(
+                label="⬇️ Baixar Excel",
+                data=d_excel,
+                file_name=f"Calendario_{st.session_state['ano_base']}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="excel_btn"
+            )
         with c_pdf:
             st.write("**Calendário PDF (.pdf)**")
             d_pdf = gerar_pdf_calendario(st.session_state['ano_base'], st.session_state['eventos'])
-            st.download_button("⬇️ Baixar PDF", d_pdf, f"Calendario_{st.session_state['ano_base']}.pdf", key="pdf_btn")
+            st.download_button(
+                label="⬇️ Baixar PDF",
+                data=d_pdf,
+                file_name=f"Calendario_{st.session_state['ano_base']}.pdf",
+                mime="application/pdf",
+                key="pdf_btn"
+            )
 
     elif senha:
         st.error("❌ Senha Incorreta")
