@@ -290,4 +290,39 @@ elif st.session_state['nav'] == 'Admin':
         
         st.markdown("---")
         
-        with st.expander
+        with st.expander("➕ Cadastrar Novo Evento"):
+            with st.form("add"):
+                nome = st.text_input("Nome", "ENSAIO LOCAL")
+                local = st.text_input("Local")
+                dia = st.selectbox("Dia", [0,1,2,3,4,5,6], format_func=lambda x: DIAS_SEMANA_PT[x])
+                semana = st.selectbox("Semana", ["1","2","3","4","5"])
+                hora = st.text_input("Hora", "19:30 HRS")
+                interc = st.selectbox("Frequência", ["Todos os Meses", "Meses Ímpares", "Meses Pares"])
+                if st.form_submit_button("Salvar"):
+                    st.session_state['eventos'].append({"nome": nome.upper(), "local": local.upper(), "dia_sem": str(dia), "semana": semana, "hora": hora.upper(), "interc": interc})
+                    st.rerun()
+        
+        st.markdown("---")
+        st.markdown("#### 📋 Gerenciar Eventos")
+        for i, evt in enumerate(st.session_state['eventos']):
+            c_a, c_b = st.columns([4,1])
+            c_a.write(f"**{evt['local']}** - {evt['semana']}ª {DIAS_SEMANA_CURTO[int(evt['dia_sem'])]}")
+            if c_b.button("🗑️", key=f"d{i}"):
+                st.session_state['eventos'].pop(i)
+                st.rerun()
+        
+        st.markdown("---")
+        st.markdown("#### 📥 Baixar Arquivos")
+        c_exc, c_pdf = st.columns(2)
+        with c_exc:
+            st.write("**Excel (.xlsx)**")
+            d_excel = gerar_excel_buffer(st.session_state['ano_base'], st.session_state['eventos'], logo_data)
+            st.download_button("⬇️ Baixar Excel", d_excel, f"Calendario_{st.session_state['ano_base']}.xlsx", key="excel_btn")
+        with c_pdf:
+            st.write("**PDF (.pdf)**")
+            d_pdf = gerar_pdf_buffer(st.session_state['ano_base'], st.session_state['eventos'])
+            st.download_button("⬇️ Baixar PDF", d_pdf, f"Calendario_{st.session_state['ano_base']}.pdf", key="pdf_btn")
+
+    elif senha:
+        st.error("❌ Senha Incorreta")
+    st.markdown("</div>", unsafe_allow_html=True)
