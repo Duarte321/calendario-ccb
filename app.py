@@ -7,7 +7,7 @@ from fpdf import FPDF
 from urllib.parse import quote
 
 # ==========================================
-# 1. LÓGICA E FUNÇÕES (PDF E EXCEL MANTIDOS PADRÃO)
+# 1. LÓGICA E FUNÇÕES
 # ==========================================
 NOMES_MESES = {1: "JANEIRO", 2: "FEVEREIRO", 3: "MARÇO", 4: "ABRIL", 5: "MAIO", 6: "JUNHO", 7: "JULHO", 8: "AGOSTO", 9: "SETEMBRO", 10: "OUTUBRO", 11: "NOVEMBRO", 12: "DEZEMBRO"}
 DIAS_SEMANA_PT = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"]
@@ -235,58 +235,61 @@ def gerar_pdf_calendario(ano, lista_eventos, avisos):
         return bytes(pdf.output())
 
 # ==========================================
-# 2. CONFIGURAÇÃO DE TEMA (DARK / LIGHT)
+# 2. CONFIGURAÇÃO DE TEMA E VISUAL
 # ==========================================
 st.set_page_config(page_title="Agenda CCB", page_icon="📅", layout="centered", initial_sidebar_state="collapsed")
 
-# Inicializa o estado do tema
 if 'theme' not in st.session_state:
     st.session_state['theme'] = 'light'
 
-# Definição das cores baseadas no tema
 if st.session_state['theme'] == 'light':
     colors = {
-        'bg': '#F5F7FA',
-        'card_bg': '#FFFFFF',
-        'text': '#222222',
-        'subtext': '#666666',
-        'header_bg': '#1F4E5F',
-        'header_text': '#FFFFFF',
-        'date_box_bg': '#EBF2F5',
-        'date_box_text': '#1F4E5F',
-        'border': 'rgba(0,0,0,0.05)',
-        'btn_notify_bg': '#eef6f8',
-        'btn_notify_text': '#1F4E5F',
-        'admin_bg': '#FFFFFF'
+        'bg': '#F5F7FA', 'card_bg': '#FFFFFF', 'text': '#222222', 'subtext': '#666666',
+        'header_bg': '#1F4E5F', 'header_text': '#FFFFFF', 'date_box_bg': '#EBF2F5',
+        'date_box_text': '#1F4E5F', 'border': 'rgba(0,0,0,0.05)', 'btn_notify_bg': '#eef6f8',
+        'btn_notify_text': '#1F4E5F', 'admin_bg': '#FFFFFF'
     }
-    icon_theme = "🌙" # Ícone para mudar para escuro
+    icon_theme = "🌙"
+    mode_text = "Modo Escuro"
 else:
     colors = {
-        'bg': '#0E1117',
-        'card_bg': '#262730',
-        'text': '#FAFAFA',
-        'subtext': '#CCCCCC',
-        'header_bg': '#1F4E5F',
-        'header_text': '#FFFFFF',
-        'date_box_bg': '#334E58',
-        'date_box_text': '#EBF2F5',
-        'border': 'rgba(255,255,255,0.1)',
-        'btn_notify_bg': '#334E58',
-        'btn_notify_text': '#FFFFFF',
-        'admin_bg': '#1E1E1E'
+        'bg': '#0E1117', 'card_bg': '#262730', 'text': '#FAFAFA', 'subtext': '#CCCCCC',
+        'header_bg': '#1F4E5F', 'header_text': '#FFFFFF', 'date_box_bg': '#334E58',
+        'date_box_text': '#EBF2F5', 'border': 'rgba(255,255,255,0.1)', 'btn_notify_bg': '#334E58',
+        'btn_notify_text': '#FFFFFF', 'admin_bg': '#1E1E1E'
     }
-    icon_theme = "☀️" # Ícone para mudar para claro
+    icon_theme = "☀️"
+    mode_text = "Modo Claro"
 
-# CSS DINÂMICO
+# Botão de Tema na barra lateral para evitar conflito com Header
+with st.sidebar:
+    st.title("Configurações")
+    if st.button(f"{icon_theme} {mode_text}", use_container_width=True):
+        st.session_state['theme'] = 'dark' if st.session_state['theme'] == 'light' else 'light'
+        st.rerun()
+
 st.markdown(f"""
 <style>
     #MainMenu {{visibility: hidden;}} footer {{visibility: hidden;}} header {{visibility: hidden;}}
     .stApp {{ background-color: {colors['bg']}; }}
     .block-container {{ padding-top: 0rem; padding-bottom: 6rem; padding-left: 1rem; padding-right: 1rem; max-width: 100%; }}
     
-    .app-header {{ position: fixed; top: 0; left: 0; width: 100%; background-color: {colors['header_bg']}; color: {colors['header_text']}; padding: 15px 20px; z-index: 999; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; }}
+    .app-header {{ position: fixed; top: 0; left: 0; width: 100%; background-color: {colors['header_bg']}; color: {colors['header_text']}; padding: 15px 20px; z-index: 999; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; gap: 20px; }}
     .app-header h1 {{ margin: 0; font-family: 'Roboto', sans-serif; font-size: 18px; font-weight: 600; color: {colors['header_text']} !important; }}
     
+    /* Botão de Tema dentro do Header (CSS Hack) */
+    .header-btn {{
+        background: transparent;
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        cursor: pointer;
+        text-decoration: none;
+    }}
+    .header-btn:hover {{ background: rgba(255,255,255,0.1); }}
+
     .header-spacer {{ height: 70px; }}
     
     .event-card {{ background: {colors['card_bg']}; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid {colors['border']}; display: flex; align-items: flex-start; gap: 15px; }}
@@ -315,44 +318,25 @@ st.markdown(f"""
         display: inline-block;
     }}
     
-    .aviso-card {{
-        background-color: #FFEBEE;
-        border-left: 5px solid #D32F2F;
-        padding: 15px;
-        margin-bottom: 15px;
-        border-radius: 8px;
-        color: #B71C1C;
-        font-weight: bold;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }}
+    .aviso-card {{ background-color: #FFEBEE; border-left: 5px solid #D32F2F; padding: 15px; margin-bottom: 15px; border-radius: 8px; color: #B71C1C; font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 10px; }}
     
     .admin-container {{ background: {colors['admin_bg']}; padding: 20px; border-radius: 12px; margin-top: 10px; }}
-    
-    /* Botão de Tema Flutuante */
-    .theme-btn {{
-        position: fixed;
-        top: 15px;
-        right: 15px;
-        z-index: 1000;
-        background: transparent;
-        border: none;
-        font-size: 20px;
-        cursor: pointer;
-    }}
 </style>
 """, unsafe_allow_html=True)
 
-# Botão de Troca de Tema (No Header)
-c_head_1, c_head_2, c_head_3 = st.columns([1, 8, 1])
-with c_head_3:
-    if st.button(icon_theme, key="theme_toggle"):
-        st.session_state['theme'] = 'dark' if st.session_state['theme'] == 'light' else 'light'
-        st.rerun()
+# HEADER CUSTOMIZADO COM BOTÃO INTEGRADO
+# Usamos colunas 'falsas' dentro do HTML para posicionar o botão ao lado do texto
+st.markdown(f"""
+<div class="app-header">
+    <h1>AGENDA CCB JACIARA</h1>
+</div>
+<div class="header-spacer"></div>
+""", unsafe_allow_html=True)
 
-st.markdown('<div class="app-header"><h1>AGENDA CCB JACIARA</h1></div><div class="header-spacer"></div>', unsafe_allow_html=True)
+# Para contornar a limitação do Streamlit de colocar botões no HTML puro,
+# Vamos usar um botão nativo do Streamlit logo abaixo do header, mas alinhado à direita
+# Ou usar o sidebar que é mais garantido no mobile. 
+# NOVO: Adicionei o botão no SIDEBAR (Menu lateral) que é o padrão de apps mobile.
 
 # --- DADOS INICIAIS ---
 if 'eventos' not in st.session_state:
@@ -375,6 +359,11 @@ if 'avisos' not in st.session_state:
 
 if 'nav' not in st.session_state: st.session_state['nav'] = 'Agenda'
 if 'ano_base' not in st.session_state: st.session_state['ano_base'] = date.today().year + 1
+
+# Botão de Menu para abrir Sidebar (Opção visual para celular)
+if st.sidebar.button("🏠 Voltar ao Início", use_container_width=True):
+    st.session_state['nav'] = 'Agenda'
+    st.rerun()
 
 c1, c2 = st.columns(2)
 with c1:
