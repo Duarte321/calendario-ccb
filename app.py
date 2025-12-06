@@ -7,7 +7,7 @@ from fpdf import FPDF
 from urllib.parse import quote
 
 # ==========================================
-# 1. LÓGICA E FUNÇÕES
+# 1. LÓGICA E FUNÇÕES (PDF E EXCEL MANTIDOS PADRÃO)
 # ==========================================
 NOMES_MESES = {1: "JANEIRO", 2: "FEVEREIRO", 3: "MARÇO", 4: "ABRIL", 5: "MAIO", 6: "JUNHO", 7: "JULHO", 8: "AGOSTO", 9: "SETEMBRO", 10: "OUTUBRO", 11: "NOVEMBRO", 12: "DEZEMBRO"}
 DIAS_SEMANA_PT = ["DOMINGO", "SEGUNDA", "TERÇA", "QUARTA", "QUINTA", "SEXTA", "SÁBADO"]
@@ -64,7 +64,7 @@ def gerar_link_google(dt, evt_data):
     local = quote(evt_data['local'])
     return f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB&sf=true&output=xml"
 
-# ===== FUNÇÃO EXCEL (COM AVISOS) =====
+# ===== FUNÇÃO EXCEL =====
 def gerar_excel_todos_meses(ano, lista_eventos, avisos):
     output = BytesIO()
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
@@ -123,10 +123,8 @@ def gerar_excel_todos_meses(ano, lista_eventos, avisos):
                         ws.write(current_row, col, dia, cell_dia)
             current_row += 1
         
-        # Campo Anotações com o Aviso do Mês
         aviso_mes = avisos.get(mes, "")
         texto_anotacao = f"Anotações: {aviso_mes}"
-        
         current_row += 1
         ws.merge_range(current_row, 0, current_row, 6, texto_anotacao, 
                        cell_aviso if aviso_mes else wb.add_format({'border': 1, 'align': 'left'}))
@@ -136,7 +134,7 @@ def gerar_excel_todos_meses(ano, lista_eventos, avisos):
     output.seek(0)
     return output
 
-# ===== FUNÇÃO PDF (COM AVISOS) =====
+# ===== FUNÇÃO PDF =====
 def gerar_pdf_calendario(ano, lista_eventos, avisos):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=False)
@@ -213,19 +211,16 @@ def gerar_pdf_calendario(ano, lista_eventos, avisos):
                 x_current += col_width
             y_start += row_height
             
-        # Anotações / Avisos
         aviso_mes = avisos.get(mes, "")
-        
         pdf.set_xy(margin_left, 260)
         pdf.set_font("Arial", "B", 10)
         pdf.set_text_color(0, 0, 0)
         
-        # Se tiver aviso, pinta de vermelho claro pra destacar
         if aviso_mes:
-            pdf.set_fill_color(255, 230, 230) # Vermelho claro
+            pdf.set_fill_color(255, 230, 230)
             pdf.cell(190, 6, "Anotacoes / Avisos Importantes:", "LTR", 1, 'L', fill=True)
             pdf.set_font("Arial", "B", 11)
-            pdf.set_text_color(180, 0, 0) # Texto vermelho escuro
+            pdf.set_text_color(180, 0, 0)
             pdf.multi_cell(190, 15, aviso_mes, "LBR", 'L', fill=True)
         else:
             pdf.set_fill_color(255, 255, 255)
@@ -240,43 +235,87 @@ def gerar_pdf_calendario(ano, lista_eventos, avisos):
         return bytes(pdf.output())
 
 # ==========================================
-# 2. VISUAL DO APP
+# 2. CONFIGURAÇÃO DE TEMA (DARK / LIGHT)
 # ==========================================
 st.set_page_config(page_title="Agenda CCB", page_icon="📅", layout="centered", initial_sidebar_state="collapsed")
 
-st.markdown("""
+# Inicializa o estado do tema
+if 'theme' not in st.session_state:
+    st.session_state['theme'] = 'light'
+
+# Definição das cores baseadas no tema
+if st.session_state['theme'] == 'light':
+    colors = {
+        'bg': '#F5F7FA',
+        'card_bg': '#FFFFFF',
+        'text': '#222222',
+        'subtext': '#666666',
+        'header_bg': '#1F4E5F',
+        'header_text': '#FFFFFF',
+        'date_box_bg': '#EBF2F5',
+        'date_box_text': '#1F4E5F',
+        'border': 'rgba(0,0,0,0.05)',
+        'btn_notify_bg': '#eef6f8',
+        'btn_notify_text': '#1F4E5F',
+        'admin_bg': '#FFFFFF'
+    }
+    icon_theme = "🌙" # Ícone para mudar para escuro
+else:
+    colors = {
+        'bg': '#0E1117',
+        'card_bg': '#262730',
+        'text': '#FAFAFA',
+        'subtext': '#CCCCCC',
+        'header_bg': '#1F4E5F',
+        'header_text': '#FFFFFF',
+        'date_box_bg': '#334E58',
+        'date_box_text': '#EBF2F5',
+        'border': 'rgba(255,255,255,0.1)',
+        'btn_notify_bg': '#334E58',
+        'btn_notify_text': '#FFFFFF',
+        'admin_bg': '#1E1E1E'
+    }
+    icon_theme = "☀️" # Ícone para mudar para claro
+
+# CSS DINÂMICO
+st.markdown(f"""
 <style>
-    #MainMenu {visibility: hidden;} footer {visibility: hidden;} header {visibility: hidden;}
-    .stApp { background-color: #F5F7FA; }
-    .block-container { padding-top: 0rem; padding-bottom: 6rem; padding-left: 1rem; padding-right: 1rem; max-width: 100%; }
-    .app-header { position: fixed; top: 0; left: 0; width: 100%; background-color: #1F4E5F; color: white; padding: 15px 20px; z-index: 999; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; }
-    .app-header h1 { margin: 0; font-family: 'Roboto', sans-serif; font-size: 18px; font-weight: 600; color: white !important; }
-    .header-spacer { height: 70px; }
-    .event-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.03); display: flex; align-items: flex-start; gap: 15px; }
-    .date-box { background-color: #EBF2F5; border-radius: 12px; min-width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #1F4E5F; }
-    .date-day { font-size: 22px; font-weight: 800; line-height: 1; }
-    .date-month { font-size: 10px; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
-    .event-details { flex-grow: 1; }
-    .event-badge { background-color: #1F4E5F; color: white; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; display: inline-block; margin-bottom: 4px; }
-    .event-title { font-size: 15px; font-weight: 700; color: #222; margin: 4px 0; line-height: 1.3; }
-    .event-info { font-size: 13px; color: #666; display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-    .btn-notify { display: inline-block; margin-top: 8px; background-color: #eef6f8; color: #1F4E5F; font-size: 11px; font-weight: bold; padding: 6px 12px; border-radius: 20px; text-decoration: none; border: 1px solid #dbebf0; }
-    .btn-notify:hover { background-color: #1F4E5F; color: white; border-color: #1F4E5F; }
+    #MainMenu {{visibility: hidden;}} footer {{visibility: hidden;}} header {{visibility: hidden;}}
+    .stApp {{ background-color: {colors['bg']}; }}
+    .block-container {{ padding-top: 0rem; padding-bottom: 6rem; padding-left: 1rem; padding-right: 1rem; max-width: 100%; }}
     
-    .month-separator { margin: 35px 0 20px 0; padding-left: 5px; }
-    .month-text { 
+    .app-header {{ position: fixed; top: 0; left: 0; width: 100%; background-color: {colors['header_bg']}; color: {colors['header_text']}; padding: 15px 20px; z-index: 999; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; }}
+    .app-header h1 {{ margin: 0; font-family: 'Roboto', sans-serif; font-size: 18px; font-weight: 600; color: {colors['header_text']} !important; }}
+    
+    .header-spacer {{ height: 70px; }}
+    
+    .event-card {{ background: {colors['card_bg']}; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid {colors['border']}; display: flex; align-items: flex-start; gap: 15px; }}
+    
+    .date-box {{ background-color: {colors['date_box_bg']}; border-radius: 12px; min-width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: {colors['date_box_text']}; }}
+    .date-day {{ font-size: 22px; font-weight: 800; line-height: 1; }}
+    .date-month {{ font-size: 10px; font-weight: 600; text-transform: uppercase; margin-top: 2px; }}
+    
+    .event-details {{ flex-grow: 1; }}
+    .event-badge {{ background-color: #1F4E5F; color: white; font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; display: inline-block; margin-bottom: 4px; }}
+    .event-title {{ font-size: 15px; font-weight: 700; color: {colors['text']}; margin: 4px 0; line-height: 1.3; }}
+    .event-info {{ font-size: 13px; color: {colors['subtext']}; display: flex; align-items: center; gap: 6px; margin-top: 2px; }}
+    
+    .btn-notify {{ display: inline-block; margin-top: 8px; background-color: {colors['btn_notify_bg']}; color: {colors['btn_notify_text']}; font-size: 11px; font-weight: bold; padding: 6px 12px; border-radius: 20px; text-decoration: none; border: 1px solid {colors['border']}; }}
+    .btn-notify:hover {{ opacity: 0.8; }}
+    
+    .month-separator {{ margin: 35px 0 20px 0; padding-left: 5px; }}
+    .month-text {{ 
         font-size: 24px !important; 
         font-weight: 900 !important; 
-        color: #1F4E5F !important; 
+        color: {colors['header_bg']} !important; 
         text-transform: uppercase; 
         letter-spacing: 1.5px; 
         border-bottom: 3px solid #A0C1D1; 
         padding-bottom: 5px;
         display: inline-block;
-    }
+    }}
     
-    /* Estilo para o Aviso no App */
-    .aviso-card {
+    .aviso-card {{
         background-color: #FFEBEE;
         border-left: 5px solid #D32F2F;
         padding: 15px;
@@ -288,11 +327,30 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 10px;
-    }
+    }}
     
-    .admin-container { background: white; padding: 20px; border-radius: 12px; margin-top: 10px; }
+    .admin-container {{ background: {colors['admin_bg']}; padding: 20px; border-radius: 12px; margin-top: 10px; }}
+    
+    /* Botão de Tema Flutuante */
+    .theme-btn {{
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        z-index: 1000;
+        background: transparent;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+    }}
 </style>
 """, unsafe_allow_html=True)
+
+# Botão de Troca de Tema (No Header)
+c_head_1, c_head_2, c_head_3 = st.columns([1, 8, 1])
+with c_head_3:
+    if st.button(icon_theme, key="theme_toggle"):
+        st.session_state['theme'] = 'dark' if st.session_state['theme'] == 'light' else 'light'
+        st.rerun()
 
 st.markdown('<div class="app-header"><h1>AGENDA CCB JACIARA</h1></div><div class="header-spacer"></div>', unsafe_allow_html=True)
 
@@ -312,9 +370,8 @@ if 'eventos' not in st.session_state:
         {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "6", "interc": "Meses Pares", "hora": "19:30 HRS", "local": "DISTRITO DE CELMA - MT"},
     ]
 
-# --- NOVO ESTADO PARA AVISOS ---
 if 'avisos' not in st.session_state:
-    st.session_state['avisos'] = {} # Ex: {1: "Aviso Janeiro", 5: "Aviso Maio"}
+    st.session_state['avisos'] = {} 
 
 if 'nav' not in st.session_state: st.session_state['nav'] = 'Agenda'
 if 'ano_base' not in st.session_state: st.session_state['ano_base'] = date.today().year + 1
@@ -336,7 +393,6 @@ if st.session_state['nav'] == 'Agenda':
                 mes_atual = dt.month
                 st.markdown(f"<div class='month-separator'><span class='month-text'>{NOMES_MESES[mes_atual]} {dt.year}</span></div>", unsafe_allow_html=True)
                 
-                # --- EXIBIR AVISO SE HOUVER ---
                 if mes_atual in st.session_state['avisos'] and st.session_state['avisos'][mes_atual]:
                     aviso = st.session_state['avisos'][mes_atual]
                     st.markdown(f"""
@@ -380,10 +436,9 @@ elif st.session_state['nav'] == 'Admin':
         
         st.markdown("---")
         
-        # --- NOVA ABA DE AVISOS ---
         abas = st.tabs(["➕ Novo Evento", "📝 Avisos/Observações", "📋 Gerenciar Eventos", "📥 Baixar Arquivos"])
         
-        with abas[0]: # Novo Evento
+        with abas[0]: 
             with st.form("add"):
                 nome = st.text_input("Nome", "ENSAIO LOCAL")
                 local = st.text_input("Local")
@@ -395,11 +450,10 @@ elif st.session_state['nav'] == 'Admin':
                     st.session_state['eventos'].append({"nome": nome.upper(), "local": local.upper(), "dia_sem": str(dia), "semana": semana, "hora": hora.upper(), "interc": interc})
                     st.rerun()
         
-        with abas[1]: # Avisos
+        with abas[1]: 
             st.markdown("Adicione observações importantes para aparecerem no mês (ex: Mudança de data).")
             mes_aviso = st.selectbox("Escolha o Mês", range(1, 13), format_func=lambda x: NOMES_MESES[x])
             
-            # Carrega aviso existente
             texto_atual = st.session_state['avisos'].get(mes_aviso, "")
             novo_aviso = st.text_area("Texto do Aviso", value=texto_atual, height=100)
             
@@ -415,7 +469,7 @@ elif st.session_state['nav'] == 'Admin':
                     st.success("Aviso removido.")
                     st.rerun()
 
-        with abas[2]: # Gerenciar
+        with abas[2]: 
             for i, evt in enumerate(st.session_state['eventos']):
                 c_a, c_b = st.columns([4,1])
                 c_a.write(f"**{evt['local']}** - {evt['semana']}ª {DIAS_SEMANA_CURTO[int(evt['dia_sem'])]}")
@@ -423,7 +477,7 @@ elif st.session_state['nav'] == 'Admin':
                     st.session_state['eventos'].pop(i)
                     st.rerun()
         
-        with abas[3]: # Baixar
+        with abas[3]: 
             st.write("**Calendário Excel (.xlsx)**")
             d_excel = gerar_excel_todos_meses(st.session_state['ano_base'], st.session_state['eventos'], st.session_state['avisos'])
             st.download_button(
