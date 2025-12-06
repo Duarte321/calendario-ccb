@@ -204,7 +204,8 @@ if st.session_state['theme'] == 'light':
         'shadow': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
         'highlight': '#1F4E5F', 'accent': '#FFD700',
         'menu_icon_color': '#1F4E5F',
-        'admin_title_color': '#1F4E5F' # COR ADMIN LIGHT
+        'admin_title_color': '#1F4E5F',
+        'label_color': '#1F4E5F' # COR DOS RÓTULOS LIGHT
     }
     icon_theme = "🌙"
 else:
@@ -216,7 +217,8 @@ else:
         'shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
         'highlight': '#81D4FA', 'accent': '#FFD700',
         'menu_icon_color': '#FFFFFF',
-        'admin_title_color': '#FFFFFF' # COR ADMIN DARK (BRANCO)
+        'admin_title_color': '#FFFFFF',
+        'label_color': '#FFFFFF' # COR DOS RÓTULOS DARK
     }
     icon_theme = "☀️"
 
@@ -230,6 +232,17 @@ st.markdown(f"""
         background: {css_vars['bg_gradient']};
         background-attachment: fixed;
         font-family: 'Poppins', sans-serif;
+    }}
+
+    /* FORÇAR COR DOS LABELS DO STREAMLIT */
+    .st-emotion-cache-19rxjzo, .st-emotion-cache-1qg05tj, label {{
+        color: {css_vars['label_color']} !important;
+        font-weight: 600 !important;
+    }}
+    
+    /* Força cor branca ou escura nos textos gerais de markdown dentro do form */
+    .stMarkdown p {{
+        color: {css_vars['label_color']} !important;
     }}
 
     .block-container {{ padding-top: 2rem; padding-bottom: 4rem; }}
@@ -281,7 +294,6 @@ st.markdown(f"""
     .aviso-card {{ background: rgba(255, 0, 0, 0.05); border-left: 4px solid #D32F2F; padding: 15px; margin: 10px 0 20px 0; border-radius: 8px; color: #D32F2F; font-weight: 600; display: flex; align-items: center; gap: 10px; backdrop-filter: blur(5px); }}
     .admin-container {{ background: {css_vars['card_bg']}; padding: 25px; border-radius: 20px; box-shadow: {css_vars['shadow']}; backdrop-filter: blur(10px); }}
     
-    /* ESTILO CORRIGIDO PARA O TÍTULO DO ADMIN */
     .admin-title {{
         color: {css_vars['admin_title_color']} !important;
         font-weight: 800;
@@ -326,7 +338,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# BOTÕES DE NAVEGAÇÃO NA TELA PRINCIPAL
+# BOTÕES DE NAVEGAÇÃO
 col_nav_1, col_nav_2 = st.columns(2)
 with col_nav_1:
     if st.button("📅 VER AGENDA", use_container_width=True):
@@ -399,7 +411,6 @@ if st.session_state['nav'] == 'Agenda':
 
 elif st.session_state['nav'] == 'Admin':
     st.markdown("<div class='admin-container'>", unsafe_allow_html=True)
-    # AQUI ESTÁ A CORREÇÃO: USANDO A CLASSE .admin-title QUE CRIA A COR DINÂMICA
     st.markdown("<h2 class='admin-title'>🔒 Painel Administrativo</h2>", unsafe_allow_html=True)
     
     senha = st.text_input("Senha de Acesso", type="password")
