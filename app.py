@@ -64,7 +64,7 @@ def gerar_link_google(dt, evt_data):
     local = quote(evt_data['local'])
     return f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB&sf=true&output=xml"
 
-# ===== FUNÇÕES DE ARQUIVO MANTIDAS =====
+# ===== FUNÇÕES DE ARQUIVO =====
 def gerar_excel_todos_meses(ano, lista_eventos, avisos):
     output = BytesIO()
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
@@ -189,60 +189,56 @@ def gerar_pdf_calendario(ano, lista_eventos, avisos):
     except: return bytes(pdf.output())
 
 # ==========================================
-# 2. CONFIGURAÇÃO VISUAL COM MENU ESCURO
+# 2. VISUAL
 # ==========================================
 st.set_page_config(page_title="Agenda CCB", page_icon="📅", layout="centered", initial_sidebar_state="collapsed")
 
-if 'theme' not in st.session_state:
-    st.session_state['theme'] = 'light'
+if 'theme' not in st.session_state: st.session_state['theme'] = 'light'
 
-# Paleta de Cores
 if st.session_state['theme'] == 'light':
     css_vars = {
         'bg_gradient': 'linear-gradient(135deg, #F5F7FA 0%, #C3CFE2 100%)',
         'card_bg': 'rgba(255, 255, 255, 0.85)',
         'card_border': 'rgba(255, 255, 255, 0.6)',
-        'text_color': '#1F4E5F',
-        'text_sec': '#546E7A',
+        'text_color': '#1F4E5F', 'text_sec': '#546E7A',
         'shadow': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
-        'highlight': '#1F4E5F',
-        'accent': '#FFD700'
+        'highlight': '#1F4E5F', 'accent': '#FFD700',
+        'menu_icon_color': '#1F4E5F' # COR ESCURA PARA O MENU
     }
     icon_theme = "🌙"
-    mode_text = "Modo Escuro"
 else:
     css_vars = {
         'bg_gradient': 'linear-gradient(135deg, #0F2027 0%, #203A43 50%, #2C5364 100%)',
         'card_bg': 'rgba(30, 40, 50, 0.75)',
         'card_border': 'rgba(255, 255, 255, 0.1)',
-        'text_color': '#FFFFFF',
-        'text_sec': '#B0BEC5',
+        'text_color': '#FFFFFF', 'text_sec': '#B0BEC5',
         'shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
-        'highlight': '#81D4FA',
-        'accent': '#FFD700'
+        'highlight': '#81D4FA', 'accent': '#FFD700',
+        'menu_icon_color': '#FFFFFF' # COR CLARA PARA O MENU
     }
     icon_theme = "☀️"
-    mode_text = "Modo Claro"
 
-# CSS AVANÇADO + CORREÇÃO DO MENU
+# CSS COM CORREÇÃO DO MENU INVISÍVEL
 st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
 
     #MainMenu {{visibility: hidden;}} footer {{visibility: hidden;}} header {{visibility: hidden;}}
+
+    /* --- CORREÇÃO DA SETINHA/MENU INVISÍVEL --- */
+    /* Força a cor do ícone SVG do menu do Streamlit */
+    [data-testid="stSidebarCollapsedControl"] button svg {{
+        fill: {css_vars['menu_icon_color']} !important;
+        stroke: {css_vars['menu_icon_color']} !important;
+    }}
     
-    /* FORÇA O ÍCONE DO MENU (HAMBURGER) A FICAR ESCURO E VISÍVEL */
-    [data-testid="stSidebarNav"] {{
-        display: none;
+    /* Garante que o botão esteja clicável e visível */
+    [data-testid="stSidebarCollapsedControl"] {{
+        background-color: rgba(255,255,255,0.2);
+        border-radius: 50%;
+        padding: 2px;
     }}
-    .st-emotion-cache-16txtl3 {{
-        color: {css_vars['text_color']} !important; /* Cor do icone */
-    }}
-    
-    /* Tenta forçar cor do icone SVG do menu */
-    button[kind="header"] svg {{
-        fill: {css_vars['text_color']} !important;
-    }}
+    /* ------------------------------------------- */
 
     .stApp {{
         background: {css_vars['bg_gradient']};
@@ -298,19 +294,10 @@ st.markdown(f"""
 
     .aviso-card {{ background: rgba(255, 0, 0, 0.05); border-left: 4px solid #D32F2F; padding: 15px; margin: 10px 0 20px 0; border-radius: 8px; color: #D32F2F; font-weight: 600; display: flex; align-items: center; gap: 10px; backdrop-filter: blur(5px); }}
     .admin-container {{ background: {css_vars['card_bg']}; padding: 25px; border-radius: 20px; box-shadow: {css_vars['shadow']}; backdrop-filter: blur(10px); }}
-    
-    /* Botão Flutuante de Tema no canto direito */
-    .theme-float {{
-        position: fixed;
-        top: 15px;
-        right: 15px;
-        z-index: 9999;
-    }}
 </style>
 """, unsafe_allow_html=True)
 
-# BOTÃO DE TEMA FLUTUANTE (NOVO)
-# Fica fixo no canto superior direito, fora do fluxo da página
+# BOTÃO DE TEMA FLUTUANTE
 c_float_1, c_float_2 = st.columns([8, 1])
 with c_float_2:
     if st.button(icon_theme, key="float_theme"):
@@ -318,7 +305,7 @@ with c_float_2:
         st.rerun()
 
 # ==========================================
-# 3. ESTRUTURA E NAVEGAÇÃO
+# 3. NAVEGAÇÃO
 # ==========================================
 if 'eventos' not in st.session_state:
     st.session_state['eventos'] = [
@@ -334,12 +321,10 @@ if 'eventos' not in st.session_state:
         {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "4", "interc": "Meses Ímpares", "hora": "19:30 HRS", "local": "ENTRE RIOS - MT"},
         {"nome": "ENSAIO LOCAL", "semana": "3", "dia_sem": "6", "interc": "Meses Pares", "hora": "19:30 HRS", "local": "DISTRITO DE CELMA - MT"},
     ]
-
 if 'avisos' not in st.session_state: st.session_state['avisos'] = {} 
 if 'nav' not in st.session_state: st.session_state['nav'] = 'Agenda'
 if 'ano_base' not in st.session_state: st.session_state['ano_base'] = date.today().year + 1
 
-# SIDEBAR
 with st.sidebar:
     st.markdown("### ⚙️ MENU")
     if st.button("📅 Ver Agenda", use_container_width=True):
@@ -362,7 +347,6 @@ if st.session_state['nav'] == 'Agenda':
 
     agenda = montar_agenda_ordenada(st.session_state['ano_base'], st.session_state['eventos'])
     
-    # Destaque Próximo Evento
     hoje = date.today()
     prox_evento = None
     for dt, evt in agenda:
@@ -374,7 +358,6 @@ if st.session_state['nav'] == 'Agenda':
         p_dt, p_evt = prox_evento
         dias_falta = (p_dt - hoje).days
         txt_dias = "HOJE!" if dias_falta == 0 else f"Faltam {dias_falta} dias" if dias_falta > 0 else ""
-        
         st.markdown(f"""
         <div class="next-event-box">
             <div class="next-label">✨ Próximo Ensaio • {txt_dias}</div>
@@ -384,7 +367,6 @@ if st.session_state['nav'] == 'Agenda':
         </div>
         """, unsafe_allow_html=True)
 
-    # Lista de Eventos
     if not agenda:
         st.info("Nenhum evento encontrado.")
     else:
@@ -421,14 +403,11 @@ elif st.session_state['nav'] == 'Admin':
     st.markdown("<div class='admin-container'>", unsafe_allow_html=True)
     st.subheader("🔒 Painel Administrativo")
     senha = st.text_input("Senha de Acesso", type="password")
-    
     if senha == "ccb123":
         st.success("✅ Acesso Liberado")
-        st.markdown("#### 🔧 Configurações Gerais")
         st.session_state['ano_base'] = st.number_input("Ano de Referência", value=st.session_state['ano_base'], step=1)
         st.markdown("---")
         abas = st.tabs(["➕ Novo Evento", "📝 Avisos", "📋 Gerenciar", "📥 Downloads"])
-        
         with abas[0]: 
             with st.form("add"):
                 nome = st.text_input("Nome", "ENSAIO LOCAL")
@@ -441,7 +420,6 @@ elif st.session_state['nav'] == 'Admin':
                     st.session_state['eventos'].append({"nome": nome.upper(), "local": local.upper(), "dia_sem": str(dia), "semana": semana, "hora": hora.upper(), "interc": interc})
                     st.rerun()
         with abas[1]: 
-            st.markdown("Adicione observações importantes (ex: Mudança de data).")
             mes_aviso = st.selectbox("Escolha o Mês", range(1, 13), format_func=lambda x: NOMES_MESES[x])
             texto_atual = st.session_state['avisos'].get(mes_aviso, "")
             novo_aviso = st.text_area("Texto do Aviso", value=texto_atual, height=100)
@@ -464,7 +442,5 @@ elif st.session_state['nav'] == 'Admin':
             st.download_button("⬇️ Excel", d_excel, f"Calendario_{st.session_state['ano_base']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             d_pdf = gerar_pdf_calendario(st.session_state['ano_base'], st.session_state['eventos'], st.session_state['avisos'])
             st.download_button("⬇️ PDF", d_pdf, f"Calendario_{st.session_state['ano_base']}.pdf", mime="application/pdf")
-
-    elif senha:
-        st.error("❌ Senha Incorreta")
+    elif senha: st.error("❌ Senha Incorreta")
     st.markdown("</div>", unsafe_allow_html=True)
