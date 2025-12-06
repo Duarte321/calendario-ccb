@@ -2,7 +2,7 @@ import streamlit as st
 import xlsxwriter
 import calendar
 from io import BytesIO
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from fpdf import FPDF
 from urllib.parse import quote
 
@@ -64,7 +64,7 @@ def gerar_link_google(dt, evt_data):
     local = quote(evt_data['local'])
     return f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={titulo}&dates={data_inicio}/{data_fim}&location={local}&details=Ensaio+CCB&sf=true&output=xml"
 
-# ===== FUNÇÕES DE ARQUIVO MANTIDAS IGUAIS =====
+# ===== FUNÇÕES DE ARQUIVO MANTIDAS =====
 def gerar_excel_todos_meses(ano, lista_eventos, avisos):
     output = BytesIO()
     wb = xlsxwriter.Workbook(output, {'in_memory': True})
@@ -189,14 +189,14 @@ def gerar_pdf_calendario(ano, lista_eventos, avisos):
     except: return bytes(pdf.output())
 
 # ==========================================
-# 2. CONFIGURAÇÃO VISUAL "TOP" (MODERNA)
+# 2. CONFIGURAÇÃO VISUAL COM MENU ESCURO
 # ==========================================
 st.set_page_config(page_title="Agenda CCB", page_icon="📅", layout="centered", initial_sidebar_state="collapsed")
 
 if 'theme' not in st.session_state:
     st.session_state['theme'] = 'light'
 
-# Paleta de Cores Moderna (Glassmorphism)
+# Paleta de Cores
 if st.session_state['theme'] == 'light':
     css_vars = {
         'bg_gradient': 'linear-gradient(135deg, #F5F7FA 0%, #C3CFE2 100%)',
@@ -224,204 +224,102 @@ else:
     icon_theme = "☀️"
     mode_text = "Modo Claro"
 
-# --- INJEÇÃO DE CSS AVANÇADO ---
+# CSS AVANÇADO + CORREÇÃO DO MENU
 st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
 
-    /* Reset Geral */
     #MainMenu {{visibility: hidden;}} footer {{visibility: hidden;}} header {{visibility: hidden;}}
     
+    /* FORÇA O ÍCONE DO MENU (HAMBURGER) A FICAR ESCURO E VISÍVEL */
+    [data-testid="stSidebarNav"] {{
+        display: none;
+    }}
+    .st-emotion-cache-16txtl3 {{
+        color: {css_vars['text_color']} !important; /* Cor do icone */
+    }}
+    
+    /* Tenta forçar cor do icone SVG do menu */
+    button[kind="header"] svg {{
+        fill: {css_vars['text_color']} !important;
+    }}
+
     .stApp {{
         background: {css_vars['bg_gradient']};
         background-attachment: fixed;
         font-family: 'Poppins', sans-serif;
     }}
 
-    /* Ajuste do Container Principal para não esconder no topo */
-    .block-container {{
-        padding-top: 2rem; 
-        padding-bottom: 4rem;
-    }}
+    .block-container {{ padding-top: 2rem; padding-bottom: 4rem; }}
 
-    /* HEADER ELEGANTE */
-    .modern-header {{
-        text-align: center;
-        padding: 20px;
-        background: transparent;
-        margin-bottom: 20px;
-    }}
+    .modern-header {{ text-align: center; padding: 20px; background: transparent; margin-bottom: 20px; }}
     .modern-header h1 {{
-        font-family: 'Poppins', sans-serif;
-        font-weight: 800;
-        font-size: 26px;
-        color: {css_vars['text_color']};
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        text-shadow: 0px 2px 4px rgba(0,0,0,0.1);
-        margin: 0;
+        font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 26px;
+        color: {css_vars['text_color']}; text-transform: uppercase; letter-spacing: 2px;
+        text-shadow: 0px 2px 4px rgba(0,0,0,0.1); margin: 0;
     }}
-    .modern-header p {{
-        color: {css_vars['text_sec']};
-        font-size: 12px;
-        font-weight: 400;
-    }}
+    .modern-header p {{ color: {css_vars['text_sec']}; font-size: 12px; font-weight: 400; }}
 
-    /* CARTÕES COM EFEITO GLASSMORPHISM E ANIMAÇÃO */
-    @keyframes fadeInUp {{
-        from {{ opacity: 0; transform: translate3d(0, 30px, 0); }}
-        to {{ opacity: 1; transform: translate3d(0, 0, 0); }}
-    }}
+    @keyframes fadeInUp {{ from {{ opacity: 0; transform: translate3d(0, 30px, 0); }} to {{ opacity: 1; transform: translate3d(0, 0, 0); }} }}
 
     .event-card {{
-        background: {css_vars['card_bg']};
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        border-radius: 20px;
-        border: 1px solid {css_vars['card_border']};
-        box-shadow: {css_vars['shadow']};
-        padding: 18px;
-        margin-bottom: 18px;
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        animation: fadeInUp 0.6s ease-both;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        background: {css_vars['card_bg']}; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        border-radius: 20px; border: 1px solid {css_vars['card_border']}; box-shadow: {css_vars['shadow']};
+        padding: 18px; margin-bottom: 18px; display: flex; align-items: center; gap: 15px;
+        animation: fadeInUp 0.6s ease-both; transition: transform 0.2s ease, box-shadow 0.2s ease;
     }}
+    .event-card:hover {{ transform: translateY(-3px); box-shadow: 0 12px 40px 0 rgba(0,0,0,0.2); }}
 
-    .event-card:hover {{
-        transform: translateY(-3px);
-        box-shadow: 0 12px 40px 0 rgba(0,0,0,0.2);
-    }}
-
-    /* DATA DO EVENTO */
     .date-box {{
-        background: linear-gradient(135deg, #1F4E5F 0%, #14323F 100%);
-        border-radius: 14px;
-        width: 65px;
-        height: 65px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        box-shadow: 0 4px 10px rgba(31, 78, 95, 0.3);
+        background: linear-gradient(135deg, #1F4E5F 0%, #14323F 100%); border-radius: 14px;
+        width: 65px; height: 65px; display: flex; flex-direction: column; align-items: center;
+        justify-content: center; color: white; box-shadow: 0 4px 10px rgba(31, 78, 95, 0.3);
     }}
     .date-day {{ font-size: 24px; font-weight: 700; line-height: 1; }}
     .date-month {{ font-size: 9px; font-weight: 600; text-transform: uppercase; margin-top: 2px; letter-spacing: 1px; }}
 
-    /* DETALHES DO EVENTO */
     .event-details {{ flex-grow: 1; }}
-    .event-badge {{ 
-        background-color: {css_vars['accent']}; 
-        color: #333; 
-        font-size: 10px; 
-        font-weight: 800; 
-        padding: 3px 10px; 
-        border-radius: 20px; 
-        text-transform: uppercase; 
-        display: inline-block; 
-        margin-bottom: 6px; 
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }}
-    .event-title {{ 
-        font-size: 16px; 
-        font-weight: 700; 
-        color: {css_vars['text_color']}; 
-        margin: 2px 0 4px 0; 
-    }}
-    .event-info {{ 
-        font-size: 13px; 
-        color: {css_vars['text_sec']}; 
-        display: flex; align-items: center; gap: 6px; margin-top: 3px; 
-    }}
+    .event-badge {{ background-color: {css_vars['accent']}; color: #333; font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; display: inline-block; margin-bottom: 6px; }}
+    .event-title {{ font-size: 16px; font-weight: 700; color: {css_vars['text_color']}; margin: 2px 0 4px 0; }}
+    .event-info {{ font-size: 13px; color: {css_vars['text_sec']}; display: flex; align-items: center; gap: 6px; margin-top: 3px; }}
 
-    /* BOTÃO NOTIFICAR */
-    .btn-notify {{ 
-        display: inline-block; 
-        margin-top: 10px; 
-        background-color: transparent; 
-        color: {css_vars['highlight']}; 
-        font-size: 12px; 
-        font-weight: 700; 
-        padding: 6px 14px; 
-        border-radius: 20px; 
-        text-decoration: none; 
-        border: 2px solid {css_vars['highlight']}; 
-        transition: all 0.3s ease;
-    }}
-    .btn-notify:hover {{ 
-        background-color: {css_vars['highlight']}; 
-        color: white; 
-    }}
+    .btn-notify {{ display: inline-block; margin-top: 10px; background-color: transparent; color: {css_vars['highlight']}; font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 20px; text-decoration: none; border: 2px solid {css_vars['highlight']}; transition: all 0.3s ease; }}
+    .btn-notify:hover {{ background-color: {css_vars['highlight']}; color: white; }}
 
-    /* SEPARADOR DE MÊS ELEGANTE */
-    .month-separator {{ 
-        margin: 40px 0 20px 0; 
-        display: flex; 
-        align-items: center; 
-    }}
-    .month-text {{ 
-        font-size: 28px !important; 
-        font-weight: 900 !important; 
-        background: -webkit-linear-gradient(45deg, {css_vars['text_color']}, {css_vars['text_sec']});
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-transform: uppercase; 
-        letter-spacing: 2px; 
-    }}
+    .month-separator {{ margin: 40px 0 20px 0; display: flex; align-items: center; }}
+    .month-text {{ font-size: 28px !important; font-weight: 900 !important; background: -webkit-linear-gradient(45deg, {css_vars['text_color']}, {css_vars['text_sec']}); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; letter-spacing: 2px; }}
     
-    /* DESTAQUE PRÓXIMO EVENTO */
     .next-event-box {{
-        background: linear-gradient(135deg, #1F4E5F 0%, #468196 100%);
-        border-radius: 20px;
-        padding: 20px;
-        color: white;
-        margin-bottom: 30px;
-        box-shadow: 0 10px 30px rgba(31, 78, 95, 0.4);
-        text-align: center;
-        animation: fadeInUp 0.8s ease-both;
+        background: linear-gradient(135deg, #1F4E5F 0%, #468196 100%); border-radius: 20px; padding: 20px; color: white; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(31, 78, 95, 0.4); text-align: center; animation: fadeInUp 0.8s ease-both;
     }}
     .next-label {{ font-size: 12px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.8; }}
     .next-title {{ font-size: 22px; font-weight: 800; margin: 5px 0; }}
     .next-date {{ font-size: 16px; font-weight: 500; background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 20px; display: inline-block; margin-top: 10px;}}
 
-    /* AVISOS */
-    .aviso-card {{ 
-        background: rgba(255, 0, 0, 0.05); 
-        border-left: 4px solid #D32F2F; 
-        padding: 15px; 
-        margin: 10px 0 20px 0; 
-        border-radius: 8px; 
-        color: #D32F2F; 
-        font-weight: 600; 
-        display: flex; align-items: center; gap: 10px;
-        backdrop-filter: blur(5px);
-    }}
-
-    /* CONTAINER ADMIN */
-    .admin-container {{ 
-        background: {css_vars['card_bg']}; 
-        padding: 25px; 
-        border-radius: 20px; 
-        box-shadow: {css_vars['shadow']};
-        backdrop-filter: blur(10px);
-    }}
+    .aviso-card {{ background: rgba(255, 0, 0, 0.05); border-left: 4px solid #D32F2F; padding: 15px; margin: 10px 0 20px 0; border-radius: 8px; color: #D32F2F; font-weight: 600; display: flex; align-items: center; gap: 10px; backdrop-filter: blur(5px); }}
+    .admin-container {{ background: {css_vars['card_bg']}; padding: 25px; border-radius: 20px; box-shadow: {css_vars['shadow']}; backdrop-filter: blur(10px); }}
     
-    /* Sidebar Customization */
-    [data-testid="stSidebar"] {{
-        background-color: {css_vars['card_bg']} !important;
-        border-right: 1px solid {css_vars['card_border']};
+    /* Botão Flutuante de Tema no canto direito */
+    .theme-float {{
+        position: fixed;
+        top: 15px;
+        right: 15px;
+        z-index: 9999;
     }}
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# 3. ESTRUTURA DE NAVEGAÇÃO (SIDEBAR)
-# ==========================================
-# Aqui resolvemos o problema dos botões sumindo. 
-# Colocamos tudo na Sidebar que é o lugar seguro no mobile.
+# BOTÃO DE TEMA FLUTUANTE (NOVO)
+# Fica fixo no canto superior direito, fora do fluxo da página
+c_float_1, c_float_2 = st.columns([8, 1])
+with c_float_2:
+    if st.button(icon_theme, key="float_theme"):
+        st.session_state['theme'] = 'dark' if st.session_state['theme'] == 'light' else 'light'
+        st.rerun()
 
+# ==========================================
+# 3. ESTRUTURA E NAVEGAÇÃO
+# ==========================================
 if 'eventos' not in st.session_state:
     st.session_state['eventos'] = [
         {"nome": "ENSAIO LOCAL", "semana": "1", "dia_sem": "6", "interc": "Todos os Meses", "hora": "19:30 HRS", "local": "SÃO PEDRO DA CIPA - MT"},
@@ -441,31 +339,20 @@ if 'avisos' not in st.session_state: st.session_state['avisos'] = {}
 if 'nav' not in st.session_state: st.session_state['nav'] = 'Agenda'
 if 'ano_base' not in st.session_state: st.session_state['ano_base'] = date.today().year + 1
 
-# --- SIDEBAR MENU ---
+# SIDEBAR
 with st.sidebar:
-    st.markdown("### ⚙️ MENU PRINCIPAL")
-    
-    # Botão de Tema
-    if st.button(f"{icon_theme} Alternar Tema ({'Escuro' if st.session_state['theme'] == 'light' else 'Claro'})", use_container_width=True):
-        st.session_state['theme'] = 'dark' if st.session_state['theme'] == 'light' else 'light'
-        st.rerun()
-    
-    st.markdown("---")
-    
-    # Navegação
+    st.markdown("### ⚙️ MENU")
     if st.button("📅 Ver Agenda", use_container_width=True):
         st.session_state['nav'] = 'Agenda'
         st.rerun()
-        
-    if st.button("🔒 Área Administrativa", use_container_width=True):
+    if st.button("🔒 Área Admin", use_container_width=True):
         st.session_state['nav'] = 'Admin'
         st.rerun()
 
 # ==========================================
-# 4. PÁGINA PRINCIPAL (AGENDA)
+# 4. PÁGINA PRINCIPAL
 # ==========================================
 if st.session_state['nav'] == 'Agenda':
-    # Cabeçalho Estilizado
     st.markdown(f"""
     <div class="modern-header">
         <h1>Agenda CCB Jaciara</h1>
@@ -475,7 +362,7 @@ if st.session_state['nav'] == 'Agenda':
 
     agenda = montar_agenda_ordenada(st.session_state['ano_base'], st.session_state['eventos'])
     
-    # --- DESTAQUE PRÓXIMO EVENTO (EFEITO WOW) ---
+    # Destaque Próximo Evento
     hoje = date.today()
     prox_evento = None
     for dt, evt in agenda:
@@ -497,32 +384,23 @@ if st.session_state['nav'] == 'Agenda':
         </div>
         """, unsafe_allow_html=True)
 
-    # --- LISTAGEM MENSAL ---
+    # Lista de Eventos
     if not agenda:
         st.info("Nenhum evento encontrado.")
     else:
         mes_atual = 0
         for dt, evt_data in agenda:
-            # Separador de Mês
             if dt.month != mes_atual:
                 mes_atual = dt.month
                 st.markdown(f"<div class='month-separator'><span class='month-text'>{NOMES_MESES[mes_atual]} {dt.year}</span></div>", unsafe_allow_html=True)
-                
-                # Aviso do Mês
                 if mes_atual in st.session_state['avisos'] and st.session_state['avisos'][mes_atual]:
                     aviso = st.session_state['avisos'][mes_atual]
-                    st.markdown(f"""
-                    <div class="aviso-card">
-                        <span style="font-size: 20px">📢</span>
-                        <span>{aviso}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f"""<div class="aviso-card"><span style="font-size: 20px">📢</span><span>{aviso}</span></div>""", unsafe_allow_html=True)
             
             dia_semana = DIAS_SEMANA_PT[int(dt.strftime("%w"))]
             mes_abrev = NOMES_MESES[dt.month][:3]
             link_google = gerar_link_google(dt, evt_data)
             
-            # Cartão do Evento
             st.markdown(f"""
             <div class="event-card">
                 <div class="date-box">
@@ -539,9 +417,6 @@ if st.session_state['nav'] == 'Agenda':
             </div>
             """, unsafe_allow_html=True)
 
-# ==========================================
-# 5. ÁREA ADMIN (MANTIDA IGUAL + ESTILO)
-# ==========================================
 elif st.session_state['nav'] == 'Admin':
     st.markdown("<div class='admin-container'>", unsafe_allow_html=True)
     st.subheader("🔒 Painel Administrativo")
@@ -551,7 +426,6 @@ elif st.session_state['nav'] == 'Admin':
         st.success("✅ Acesso Liberado")
         st.markdown("#### 🔧 Configurações Gerais")
         st.session_state['ano_base'] = st.number_input("Ano de Referência", value=st.session_state['ano_base'], step=1)
-        
         st.markdown("---")
         abas = st.tabs(["➕ Novo Evento", "📝 Avisos", "📋 Gerenciar", "📥 Downloads"])
         
@@ -566,7 +440,6 @@ elif st.session_state['nav'] == 'Admin':
                 if st.form_submit_button("Salvar Evento"):
                     st.session_state['eventos'].append({"nome": nome.upper(), "local": local.upper(), "dia_sem": str(dia), "semana": semana, "hora": hora.upper(), "interc": interc})
                     st.rerun()
-        
         with abas[1]: 
             st.markdown("Adicione observações importantes (ex: Mudança de data).")
             mes_aviso = st.selectbox("Escolha o Mês", range(1, 13), format_func=lambda x: NOMES_MESES[x])
@@ -579,7 +452,6 @@ elif st.session_state['nav'] == 'Admin':
             if c2.button("Apagar Aviso"):
                 if mes_aviso in st.session_state['avisos']: del st.session_state['avisos'][mes_aviso]
                 st.rerun()
-
         with abas[2]: 
             for i, evt in enumerate(st.session_state['eventos']):
                 c_a, c_b = st.columns([4,1])
@@ -587,7 +459,6 @@ elif st.session_state['nav'] == 'Admin':
                 if c_b.button("🗑️", key=f"d{i}"):
                     st.session_state['eventos'].pop(i)
                     st.rerun()
-        
         with abas[3]: 
             d_excel = gerar_excel_todos_meses(st.session_state['ano_base'], st.session_state['eventos'], st.session_state['avisos'])
             st.download_button("⬇️ Excel", d_excel, f"Calendario_{st.session_state['ano_base']}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
