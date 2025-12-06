@@ -203,7 +203,7 @@ if st.session_state['theme'] == 'light':
         'text_color': '#1F4E5F', 'text_sec': '#546E7A',
         'shadow': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
         'highlight': '#1F4E5F', 'accent': '#FFD700',
-        'menu_icon_color': '#1F4E5F' # COR ESCURA PARA O MENU
+        'menu_icon_color': '#1F4E5F'
     }
     icon_theme = "🌙"
 else:
@@ -214,31 +214,15 @@ else:
         'text_color': '#FFFFFF', 'text_sec': '#B0BEC5',
         'shadow': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
         'highlight': '#81D4FA', 'accent': '#FFD700',
-        'menu_icon_color': '#FFFFFF' # COR CLARA PARA O MENU
+        'menu_icon_color': '#FFFFFF'
     }
     icon_theme = "☀️"
 
-# CSS COM CORREÇÃO DO MENU INVISÍVEL
 st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap');
 
     #MainMenu {{visibility: hidden;}} footer {{visibility: hidden;}} header {{visibility: hidden;}}
-
-    /* --- CORREÇÃO DA SETINHA/MENU INVISÍVEL --- */
-    /* Força a cor do ícone SVG do menu do Streamlit */
-    [data-testid="stSidebarCollapsedControl"] button svg {{
-        fill: {css_vars['menu_icon_color']} !important;
-        stroke: {css_vars['menu_icon_color']} !important;
-    }}
-    
-    /* Garante que o botão esteja clicável e visível */
-    [data-testid="stSidebarCollapsedControl"] {{
-        background-color: rgba(255,255,255,0.2);
-        border-radius: 50%;
-        padding: 2px;
-    }}
-    /* ------------------------------------------- */
 
     .stApp {{
         background: {css_vars['bg_gradient']};
@@ -294,6 +278,14 @@ st.markdown(f"""
 
     .aviso-card {{ background: rgba(255, 0, 0, 0.05); border-left: 4px solid #D32F2F; padding: 15px; margin: 10px 0 20px 0; border-radius: 8px; color: #D32F2F; font-weight: 600; display: flex; align-items: center; gap: 10px; backdrop-filter: blur(5px); }}
     .admin-container {{ background: {css_vars['card_bg']}; padding: 25px; border-radius: 20px; box-shadow: {css_vars['shadow']}; backdrop-filter: blur(10px); }}
+    
+    /* Botões de Navegação (Grande) */
+    .nav-btn-container {{
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 20px;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -305,7 +297,7 @@ with c_float_2:
         st.rerun()
 
 # ==========================================
-# 3. NAVEGAÇÃO
+# 3. DADOS E NAVEGAÇÃO
 # ==========================================
 if 'eventos' not in st.session_state:
     st.session_state['eventos'] = [
@@ -325,26 +317,30 @@ if 'avisos' not in st.session_state: st.session_state['avisos'] = {}
 if 'nav' not in st.session_state: st.session_state['nav'] = 'Agenda'
 if 'ano_base' not in st.session_state: st.session_state['ano_base'] = date.today().year + 1
 
-with st.sidebar:
-    st.markdown("### ⚙️ MENU")
-    if st.button("📅 Ver Agenda", use_container_width=True):
+st.markdown(f"""
+<div class="modern-header">
+    <h1>Agenda CCB Jaciara</h1>
+    <p>Consulte datas e horários oficiais</p>
+</div>
+""", unsafe_allow_html=True)
+
+# BOTÕES DE NAVEGAÇÃO NA TELA PRINCIPAL
+col_nav_1, col_nav_2 = st.columns(2)
+with col_nav_1:
+    if st.button("📅 VER AGENDA", use_container_width=True):
         st.session_state['nav'] = 'Agenda'
         st.rerun()
-    if st.button("🔒 Área Admin", use_container_width=True):
+with col_nav_2:
+    if st.button("🔒 ADMIN", use_container_width=True):
         st.session_state['nav'] = 'Admin'
         st.rerun()
 
+st.markdown("---")
+
 # ==========================================
-# 4. PÁGINA PRINCIPAL
+# 4. PÁGINA CONTEÚDO
 # ==========================================
 if st.session_state['nav'] == 'Agenda':
-    st.markdown(f"""
-    <div class="modern-header">
-        <h1>Agenda CCB Jaciara</h1>
-        <p>Consulte datas e horários oficiais</p>
-    </div>
-    """, unsafe_allow_html=True)
-
     agenda = montar_agenda_ordenada(st.session_state['ano_base'], st.session_state['eventos'])
     
     hoje = date.today()
