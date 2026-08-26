@@ -2,3 +2,4 @@ streamlit
 XlsxWriter
 fpdf2
 requests
+Pillow
