@@ -292,12 +292,12 @@ def gerar_pdf(ano, eventos, avisos):
     margem = 10
     largura_total = 190
     largura_coluna = largura_total / 7
-    altura_cabecalho = 8
+    altura_cabecalho = 7
+    altura_linha = 32
 
     for mes in range(1, 13):
         pdf.add_page()
 
-        # Faixa do mês igual ao layout original
         pdf.set_fill_color(31, 78, 95)
         pdf.rect(margem, 10, largura_total, 15, "F")
         pdf.set_xy(margem, 10)
@@ -305,21 +305,16 @@ def gerar_pdf(ano, eventos, avisos):
         pdf.set_text_color(255, 255, 255)
         pdf.cell(largura_total, 15, texto_pdf_seguro(f"{NOMES_MESES[mes]} {ano}"), 0, 0, "C")
 
-        # Cabeçalho dos dias da semana
         y_header = 30
         pdf.set_xy(margem, y_header)
-        pdf.set_font("Arial", "B", 7)
+        pdf.set_font("Arial", "B", 8)
         pdf.set_fill_color(31, 78, 95)
         pdf.set_text_color(255, 255, 255)
         for dia_semana in DIAS_SEMANA_CURTO:
             pdf.cell(largura_coluna, altura_cabecalho, dia_semana, 1, 0, "C", fill=True)
 
         matriz = calendar.monthcalendar(ano, mes)
-        numero_semanas = len(matriz)
         topo_grade = y_header + altura_cabecalho
-        espaco_avisos = 28
-        fundo_grade = 260 - topo_grade - espaco_avisos
-        altura_linha = fundo_grade / numero_semanas
 
         for linha_idx, semana in enumerate(matriz):
             y = topo_grade + linha_idx * altura_linha
@@ -341,38 +336,34 @@ def gerar_pdf(ano, eventos, avisos):
                 if dia == 0:
                     continue
 
-                # Número do dia
-                pdf.set_xy(x + 1.5, y + 1.2)
-                pdf.set_font("Arial", "B", 8)
+                pdf.set_xy(x + 1.5, y + 1.3)
+                pdf.set_font("Arial", "B", 10)
                 pdf.set_text_color(0, 0, 0)
-                pdf.cell(6, 4, str(dia), 0, 0, "L")
+                pdf.cell(7, 4.5, str(dia), 0, 0, "L")
 
                 if tem_evento:
-                    cursor_y = y + 6
+                    cursor_y = y + 7
                     for evt in eventos_dict[(mes, dia)]:
                         texto_evt = texto_pdf_seguro(
                             f"{evt['titulo']}\n{evt['local']}\n{evt['hora']}"
                         )
 
-                        # Caixa interna fixa: evita o erro de multi_cell sem espaço horizontal
                         pdf.set_xy(x + 1.5, cursor_y)
-                        pdf.set_font("Arial", "B", 5.3)
+                        pdf.set_font("Arial", "B", 6.3)
                         pdf.set_text_color(0, 0, 0)
                         pdf.multi_cell(
                             largura_coluna - 3,
-                            2.5,
+                            3.0,
                             texto_evt,
                             border=0,
                             align="L",
                         )
-                        cursor_y = pdf.get_y() + 1
+                        cursor_y = pdf.get_y() + 0.8
 
-                        # Não deixa texto extrapolar a célula
                         if cursor_y > y + altura_linha - 2:
                             break
 
-        # Área de anotações / avisos
-        y_aviso = topo_grade + numero_semanas * altura_linha + 4
+        y_aviso = topo_grade + len(matriz) * altura_linha + 4
         aviso = texto_pdf_seguro(avisos.get(mes, ""))
         pdf.set_xy(margem, y_aviso)
         pdf.set_text_color(0, 0, 0)
