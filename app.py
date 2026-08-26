@@ -40,6 +40,21 @@ def _admin_password():
     return st.secrets.get("ADMIN_PASSWORD", "")
 
 
+def definir_notificacao(mensagem):
+    st.session_state["flash_message"] = mensagem
+
+
+def mostrar_notificacao():
+    mensagem = st.session_state.get("flash_message")
+    if mensagem:
+        st.success(mensagem)
+        try:
+            st.toast(mensagem, icon="✅")
+        except Exception:
+            pass
+        st.session_state["flash_message"] = None
+
+
 def carregar_eventos():
     try:
         r = requests.get(
@@ -308,6 +323,7 @@ for chave, valor in {
     "theme": "light",
     "nav": "Agenda",
     "ano_base": date.today().year,
+    "flash_message": None,
 }.items():
     if chave not in st.session_state:
         st.session_state[chave] = valor
@@ -403,6 +419,8 @@ else:
 
         if senha == _admin_password():
             st.success("✅ Acesso liberado")
+            mostrar_notificacao()
+
             st.session_state.ano_base = st.number_input(
                 "Ano de Referência",
                 min_value=2020,
@@ -440,7 +458,7 @@ else:
                                     "hora": hora.strip().upper(),
                                     "interc": freq,
                                 })
-                                st.success("Evento salvo no Supabase!")
+                                definir_notificacao("✅ Evento salvo com sucesso!")
                                 st.rerun()
                             except Exception as exc:
                                 st.error(f"Erro ao salvar: {exc}")
@@ -453,7 +471,7 @@ else:
                 if col_salvar.button("💾 Salvar Aviso", use_container_width=True):
                     try:
                         salvar_aviso(mes, aviso)
-                        st.success("Aviso salvo!")
+                        definir_notificacao("✅ Aviso salvo com sucesso!")
                         st.rerun()
                     except Exception as exc:
                         st.error(f"Erro: {exc}")
@@ -461,7 +479,7 @@ else:
                 if col_apagar.button("🗑️ Apagar Aviso", use_container_width=True):
                     try:
                         excluir_aviso(mes)
-                        st.success("Aviso apagado!")
+                        definir_notificacao("✅ Aviso excluído com sucesso!")
                         st.rerun()
                     except Exception as exc:
                         st.error(f"Erro: {exc}")
@@ -516,7 +534,7 @@ else:
                                         "hora": ehora.strip().upper(),
                                         "interc": efreq,
                                     })
-                                    st.success("Evento atualizado no Supabase!")
+                                    definir_notificacao("✅ Alterações salvas com sucesso!")
                                     st.rerun()
                                 except Exception as exc:
                                     st.error(f"Erro ao atualizar: {exc}")
@@ -537,7 +555,7 @@ else:
                     ):
                         try:
                             excluir_evento(evento_id)
-                            st.success("Evento excluído do Supabase!")
+                            definir_notificacao("✅ Evento excluído com sucesso!")
                             st.rerun()
                         except Exception as exc:
                             st.error(f"Erro ao excluir: {exc}")
