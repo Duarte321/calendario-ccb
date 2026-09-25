@@ -8,6 +8,7 @@ import requests
 import streamlit as st
 import xlsxwriter
 from fpdf import FPDF
+from auth_utils import exigir_login, logout, token
 
 SUPABASE_URL = "https://ovnwnzqjjjtfqjodvusi.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_uBqke5HDz9U-xSKjxhzUww_-Y0qW367"
@@ -37,12 +38,12 @@ def mostrar_notificacao():
 
 def carregar_eventos():
     try:
-        r=requests.get(f"{SUPABASE_URL}/rest/v1/calendario_eventos",params={"select":"id,nome,local,dia_sem,semana,hora,interc","order":"id.asc"},headers=_headers(SUPABASE_PUBLISHABLE_KEY),timeout=10);r.raise_for_status();return r.json(),None
+        r=requests.get(f"{SUPABASE_URL}/rest/v1/calendario_eventos",params={"select":"id,nome,local,dia_sem,semana,hora,interc","order":"id.asc"},headers=_headers(token()),timeout=10);r.raise_for_status();return r.json(),None
     except Exception as e:return [],str(e)
 
 def carregar_avisos():
     try:
-        r=requests.get(f"{SUPABASE_URL}/rest/v1/calendario_avisos",params={"select":"mes,texto","order":"mes.asc"},headers=_headers(SUPABASE_PUBLISHABLE_KEY),timeout=10);r.raise_for_status();return {int(x["mes"]):x.get("texto","") for x in r.json()},None
+        r=requests.get(f"{SUPABASE_URL}/rest/v1/calendario_avisos",params={"select":"mes,texto","order":"mes.asc"},headers=_headers(token()),timeout=10);r.raise_for_status();return {int(x["mes"]):x.get("texto","") for x in r.json()},None
     except Exception as e:return {},str(e)
 
 def inserir_evento(evt):
@@ -155,6 +156,8 @@ def gerar_pdf(ano,eventos,avisos):
 
 
 st.set_page_config(page_title="Agenda Musical | Região de Jaciara",page_icon="🎼",layout="wide")
+exigir_login()
+
 for k,v in {"nav":"Agenda","ano_base":date.today().year,"mes_visual":date.today().month,"flash_message":None}.items():
     if k not in st.session_state:st.session_state[k]=v
 
@@ -165,11 +168,15 @@ st.markdown('''<style>
 
 st.markdown('''<div class="premium-header"><div class="brand-row"><div class="brand-wrap"><div class="brand-icon">𝄞</div><div><div class="brand-title">Agenda Musical</div><div class="brand-sub">Região de Jaciara - MT</div></div></div><div class="header-note">Ensaios Locais • Avisos • Organização Musical<br><span style="color:#f2c45e;font-weight:700">Calendário oficial da região</span></div></div></div>''',unsafe_allow_html=True)
 
-na,nb,nc=st.columns([2,2,7])
+na,nb,nc,nd=st.columns([2,2,6,1.4])
 with na:
     if st.button("🏠 INÍCIO / AGENDA",use_container_width=True,type="primary" if st.session_state.nav=="Agenda" else "secondary"):st.session_state.nav="Agenda";st.rerun()
 with nb:
-    if st.button("🔐 ÁREA ADMIN",use_container_width=True,type="primary" if st.session_state.nav=="Admin" else "secondary"):st.session_state.nav="Admin";st.rerun()
+    if st.button("⚙️ ÁREA ADMIN",use_container_width=True,type="primary" if st.session_state.nav=="Admin" else "secondary"):st.session_state.nav="Admin";st.rerun()
+
+with nd:
+    if st.button("🚪 SAIR",use_container_width=True):
+        logout();st.rerun()
 
 eventos,erro_e=carregar_eventos();avisos,erro_a=carregar_avisos()
 if erro_e or erro_a:st.error("Não foi possível consultar o banco de dados agora.")
