@@ -90,7 +90,7 @@ with tab3:
         else:
             try:
                 uid=(st.session_state.get("auth_user") or {}).get("id")
-                payload={"tipo":"ensaio" if tipo_ui=="Ensaio Musical" else "aula_msa","data":data_reg.isoformat(),"local":local.strip(),"titulo":titulo.strip(),"instrutor":instrutor.strip() or None,"assunto":assunto.strip() or None,"resumo":resumo.strip() or None,"total_participantes":int(participantes),"criado_por":uid}
+                payload={"tipo":"ensaio" if tipo_ui=="Ensaio Musical" else "aula_msa","data":data_reg.isoformat(),"local":local.strip(),"titulo":titulo.strip(),"instrutor":instrutor.strip() or None,"assunto":assunto.strip() or None,"resumo":resumo.strip() or None,"total_participantes":int(participantes),"total_musicos":int(musicos),"total_organistas":int(organistas),"criado_por":uid}
                 registro=salvar_registro(payload)
                 for arq in fotos or []:
                     upload_arquivo(registro["id"],arq,"foto")
