@@ -8,7 +8,7 @@ import requests
 import streamlit as st
 import xlsxwriter
 from fpdf import FPDF
-from auth_utils import exigir_login, logout, token
+from auth_utils import exigir_login, logout, token, eh_admin
 
 SUPABASE_URL = "https://ovnwnzqjjjtfqjodvusi.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_uBqke5HDz9U-xSKjxhzUww_-Y0qW367"
@@ -159,30 +159,64 @@ def gerar_pdf(ano,eventos,avisos):
 st.set_page_config(page_title="Agenda Musical | Região de Jaciara",page_icon="🎼",layout="wide")
 exigir_login()
 
-for k,v in {"nav":"Agenda","ano_base":date.today().year,"mes_visual":date.today().month,"flash_message":None}.items():
+for k,v in {"nav":"Painel","ano_base":date.today().year,"mes_visual":date.today().month,"flash_message":None}.items():
     if k not in st.session_state:st.session_state[k]=v
 
 st.markdown('''<style>
 :root{--navy:#061d33;--navy2:#0b2d4d;--gold:#e0a72f;--gold2:#f2c45e;--ink:#13243a;--muted:#667085;--line:#e5e7eb}
 #MainMenu,footer,header{visibility:hidden}.stApp{background:radial-gradient(circle at 90% 5%,rgba(224,167,47,.08),transparent 24%),linear-gradient(180deg,#f9fafc,#f3f5f8);color:var(--ink)}.block-container{max-width:1500px;padding-top:0!important;padding-left:1.4rem;padding-right:1.4rem;padding-bottom:2rem}.premium-header{margin:0 -2rem 24px;padding:24px 3rem;background:linear-gradient(115deg,#04192c,#082844 58%,#061d33);color:white;box-shadow:0 8px 25px rgba(5,29,51,.18);border-bottom:1px solid rgba(224,167,47,.35)}.brand-row{display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap}.brand-wrap{display:flex;align-items:center;gap:16px}.brand-icon{width:54px;height:54px;border:1px solid rgba(224,167,47,.55);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:31px;color:var(--gold2);background:rgba(255,255,255,.03)}.brand-title{font-family:Georgia,serif;font-size:34px;font-weight:700;line-height:1;color:white}.brand-sub{margin-top:7px;color:var(--gold2);font-size:15px;font-weight:600}.header-note{color:#dbe4ee;font-size:13px;text-align:right;line-height:1.5}.section-title{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:850;color:var(--navy2);margin:18px 0 14px}.next-card{background:radial-gradient(circle at 85% 30%,rgba(224,167,47,.13),transparent 30%),linear-gradient(150deg,#082844,#061d33);color:white;border:1px solid rgba(224,167,47,.28);border-radius:18px;padding:22px;box-shadow:0 12px 28px rgba(6,29,51,.18);min-height:300px}.next-kicker{color:var(--gold2);font-size:12px;font-weight:900;letter-spacing:.9px}.next-title{font-size:28px;font-weight:850;margin:10px 0 4px;line-height:1.1}.next-local{color:#dfe7ef;font-size:15px;margin-bottom:18px}.next-rule{height:1px;background:rgba(255,255,255,.13);margin:17px 0}.next-meta{display:flex;gap:12px;align-items:flex-start;margin:14px 0}.next-meta .sym{font-size:20px;color:var(--gold2);width:25px}.next-meta b{display:block;font-size:15px;color:white}.next-meta span{color:#c7d2df;font-size:12px}.notice-card,.calendar-shell,.admin-shell{background:white;border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 24px rgba(16,24,40,.07)}.notice-card{padding:16px;margin-top:16px}.notice-head{font-weight:850;color:var(--navy2);font-size:16px}.notice-body{margin-top:12px;color:#35445a;font-size:14px;line-height:1.55}.notice-pill{display:inline-block;margin-top:12px;background:#fff1c6;color:#8a5d00;border:1px solid #f0d58a;border-radius:999px;padding:5px 10px;font-size:11px;font-weight:800}.info-card,.share-card{background:linear-gradient(150deg,#082844,#061d33);color:white;padding:20px;border:1px solid rgba(224,167,47,.22);border-radius:16px;box-shadow:0 8px 24px rgba(16,24,40,.12)}.info-card h3,.share-card h3{color:var(--gold2);font-size:16px;margin:0 0 14px}.info-card p,.share-card p{color:#e0e7ef;font-size:14px;line-height:1.65}.gold-line{height:1px;background:rgba(224,167,47,.5);margin:18px 0}.calendar-shell{padding:18px}.calendar-title{font-size:21px;font-weight:900;color:var(--navy2)}.cal-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;scrollbar-width:thin}.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);border-left:1px solid #d9dee6;border-top:1px solid #d9dee6;overflow:hidden;border-radius:10px}.cal-head{background:linear-gradient(180deg,#0b2d4d,#082844);color:white;text-align:center;font-size:12px;font-weight:850;padding:11px 4px;border-right:1px solid rgba(255,255,255,.18);border-bottom:1px solid #d9dee6}.cal-cell{min-height:115px;background:white;padding:9px;border-right:1px solid #d9dee6;border-bottom:1px solid #d9dee6}.cal-cell.empty{background:#f3f4f6}.cal-cell.event{background:linear-gradient(145deg,#fffaf0,#fff0bf)}.day-number{font-weight:900;color:#1b2738;font-size:15px;margin-bottom:7px}.cell-event{font-size:11px;line-height:1.35;color:#1b2738;margin-top:5px;font-weight:650}.cell-event .time{font-size:10px;color:#6a4c0c;margin-top:4px;font-weight:800}.mobile-swipe{display:none;color:#667085;font-size:12px;font-weight:700;text-align:center;margin:7px 0}.legend{display:flex;align-items:center;gap:8px;font-size:12px;color:#556274;margin:12px 4px 2px}.legend-box{width:16px;height:16px;border-radius:5px;background:#fff0bf;border:1px solid #f1d783}.month-divider{margin:30px 0 12px;display:flex;align-items:center;gap:12px;color:var(--navy2);font-size:21px;font-weight:900}.month-divider:after{content:"";height:1px;background:#dfe3e9;flex:1}.event-list-card{background:white;border:1px solid #e4e7ec;border-left:4px solid var(--gold);border-radius:12px;padding:14px 16px;margin:9px 0;box-shadow:0 5px 15px rgba(16,24,40,.04)}.event-list-title{font-weight:850;color:var(--navy2);font-size:15px}.event-list-info{color:#667085;font-size:13px;margin-top:4px}.event-list-card a{display:inline-block;margin-top:8px;color:#8a5d00;text-decoration:none;font-size:12px;font-weight:800}.footer-premium{margin:30px -2rem -2rem;background:linear-gradient(115deg,#04192c,#082844);color:#dbe4ee;padding:24px 3rem;border-top:1px solid rgba(224,167,47,.35)}.footer-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}.footer-title{color:var(--gold2);font-weight:850;font-size:13px;margin-bottom:7px}.footer-text{font-size:12px;line-height:1.6}.footer-bottom{text-align:center;margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.12);color:var(--gold2);font-size:12px}div[data-testid="stButton"]>button{border-radius:10px!important;font-weight:800!important;min-height:42px}div[data-testid="stButton"]>button[kind="primary"]{background:linear-gradient(135deg,#d99a21,#f1bd50)!important;color:#081c30!important;border:none!important}div[data-testid="stDownloadButton"]>button{background:linear-gradient(135deg,#0b2d4d,#061d33)!important;color:white!important;border:1px solid rgba(224,167,47,.35)!important;border-radius:10px!important;font-weight:800!important}div[data-baseweb="select"]>div,input,textarea{border-radius:10px!important}.stTabs [data-baseweb="tab-list"]{gap:8px}.stTabs [data-baseweb="tab"]{border-radius:10px 10px 0 0;padding:8px 14px;font-weight:750}@media(max-width:900px){.premium-header{margin:0 -.8rem 16px;padding:18px 1rem}.brand-title{font-size:27px}.brand-icon{width:48px;height:48px;font-size:27px}.header-note{display:none}.block-container{padding-left:.45rem;padding-right:.45rem}.calendar-shell{padding:12px}.calendar-title{font-size:19px;margin-bottom:5px}.cal-scroll{margin:0 -2px;width:calc(100% + 4px)}.cal-grid{min-width:760px;grid-template-columns:repeat(7,108px)}.cal-head{font-size:13px;padding:12px 5px}.cal-cell{min-height:118px;padding:8px}.day-number{font-size:18px}.cell-event{font-size:12px;line-height:1.4}.cell-event .time{font-size:11px}.mobile-swipe{display:block}.next-card{min-height:auto}.next-title{font-size:25px}.footer-grid{grid-template-columns:1fr}.footer-premium{margin:25px -.8rem -2rem;padding:22px 1.2rem}.event-list-title{font-size:16px}.event-list-info{font-size:14px}}
+.dashboard-hero{background:linear-gradient(135deg,#082844,#061d33);border:1px solid rgba(224,167,47,.28);border-radius:20px;padding:28px;color:white;margin:14px 0 22px;box-shadow:0 12px 30px rgba(6,29,51,.15)}.dashboard-hero h2{margin:0;color:white;font-size:28px}.dashboard-hero p{color:#dbe4ee;margin:8px 0 0}.dash-card{background:white;border:1px solid #e5e7eb;border-radius:18px;padding:22px;min-height:170px;box-shadow:0 8px 22px rgba(16,24,40,.06)}.dash-icon{font-size:32px}.dash-title{font-size:19px;font-weight:900;color:#0b2d4d;margin:10px 0 6px}.dash-text{font-size:13px;color:#667085;line-height:1.5}.user-badge{font-size:12px;color:#667085;text-align:right;margin:4px 2px 12px}
 </style>''',unsafe_allow_html=True)
 
 st.markdown('''<div class="premium-header"><div class="brand-row"><div class="brand-wrap"><div class="brand-icon">𝄞</div><div><div class="brand-title">Agenda Musical</div><div class="brand-sub">Região de Jaciara - MT</div></div></div><div class="header-note">Ensaios Locais • Avisos • Organização Musical<br><span style="color:#f2c45e;font-weight:700">Calendário oficial da região</span></div></div></div>''',unsafe_allow_html=True)
 
-na,nb,nc,nd=st.columns([2,2,6,1.4])
-with na:
-    if st.button("🏠 INÍCIO / AGENDA",use_container_width=True,type="primary" if st.session_state.nav=="Agenda" else "secondary"):st.session_state.nav="Agenda";st.rerun()
-with nb:
-    if st.button("⚙️ ÁREA ADMIN",use_container_width=True,type="primary" if st.session_state.nav=="Admin" else "secondary"):st.session_state.nav="Admin";st.rerun()
+perfil=st.session_state.get("perfil") or {}
+usuario_nome=perfil.get("nome") or (st.session_state.get("auth_user") or {}).get("email","Usuário")
+papel="Administrador" if eh_admin() else "Usuário"
+st.markdown(f'<div class="user-badge">👤 {html.escape(usuario_nome)} • {papel}</div>',unsafe_allow_html=True)
 
+na,nb,nc,nd,ne,nf=st.columns([1.4,1.6,1.8,1.6,1.5,1.1])
+with na:
+    if st.button("🏠 PAINEL",use_container_width=True,type="primary" if st.session_state.nav=="Painel" else "secondary"):
+        st.session_state.nav="Painel";st.rerun()
+with nb:
+    if st.button("📅 AGENDA",use_container_width=True,type="primary" if st.session_state.nav=="Agenda" else "secondary"):
+        st.session_state.nav="Agenda";st.rerun()
+with nc:
+    if st.button("🎼 ENSAIOS",use_container_width=True):
+        st.session_state["registro_secao"]="Ensaios";st.switch_page("pages/2_🎼_Registros_Musicais.py")
 with nd:
+    if st.button("🎓 AULAS MSA",use_container_width=True):
+        st.session_state["registro_secao"]="Aulas MSA";st.switch_page("pages/2_🎼_Registros_Musicais.py")
+with ne:
+    if eh_admin() and st.button("⚙️ ADMIN",use_container_width=True,type="primary" if st.session_state.nav=="Admin" else "secondary"):
+        st.session_state.nav="Admin";st.rerun()
+with nf:
     if st.button("🚪 SAIR",use_container_width=True):
         logout();st.rerun()
 
 eventos,erro_e=carregar_eventos();avisos,erro_a=carregar_avisos()
 if erro_e or erro_a:st.error("Não foi possível consultar o banco de dados agora.")
 
-if st.session_state.nav=="Agenda":
+if st.session_state.nav=="Painel":
+    st.markdown(f'''<div class="dashboard-hero"><h2>Bem-vindo, {html.escape(usuario_nome)}!</h2><p>Escolha uma área para acessar. Seu login dá acesso a todo o sistema.</p></div>''',unsafe_allow_html=True)
+    c1,c2,c3=st.columns(3,gap="large")
+    with c1:
+        st.markdown('<div class="dash-card"><div class="dash-icon">📅</div><div class="dash-title">Agenda Musical</div><div class="dash-text">Consulte o calendário de ensaios, avisos e próximos compromissos musicais.</div></div>',unsafe_allow_html=True)
+        if st.button("ABRIR AGENDA",use_container_width=True,type="primary",key="dash_agenda"):
+            st.session_state.nav="Agenda";st.rerun()
+    with c2:
+        st.markdown('<div class="dash-card"><div class="dash-icon">🎼</div><div class="dash-title">Registros de Ensaios</div><div class="dash-text">Acesse o histórico dos ensaios, fotos, resumos e listas de presença.</div></div>',unsafe_allow_html=True)
+        if st.button("ABRIR ENSAIOS",use_container_width=True,key="dash_ensaios"):
+            st.session_state["registro_secao"]="Ensaios";st.switch_page("pages/2_🎼_Registros_Musicais.py")
+    with c3:
+        st.markdown('<div class="dash-card"><div class="dash-icon">🎓</div><div class="dash-title">Aulas do MSA</div><div class="dash-text">Consulte aulas, temas, instrutores, fotos e participantes do MSA.</div></div>',unsafe_allow_html=True)
+        if st.button("ABRIR AULAS MSA",use_container_width=True,key="dash_msa"):
+            st.session_state["registro_secao"]="Aulas MSA";st.switch_page("pages/2_🎼_Registros_Musicais.py")
+    if eh_admin():
+        st.info("👑 Você está conectado como Administrador e possui acesso às ferramentas de cadastro e edição.")
+
+elif st.session_state.nav=="Agenda":
     agenda=montar_agenda_ordenada(st.session_state.ano_base,eventos);hoje=date.today();prox=next(((d,e)for d,e in agenda if d>=hoje),None)
     left,center,right=st.columns([1.05,2.65,1.0],gap="medium")
     with left:
@@ -217,48 +251,48 @@ if st.session_state.nav=="Agenda":
             if avisos.get(mm):st.info(f"📢 {avisos[mm]}")
         st.markdown(f'<div class="event-list-card"><div class="event-list-title">{d.strftime("%d/%m")} • {html.escape(e["titulo"].title())}</div><div class="event-list-info">📍 {html.escape(e["local"].title())} &nbsp;&nbsp; 🕒 {html.escape(e["hora"])} • {DIAS_SEMANA_PT[int(d.strftime("%w"))].title()}</div><a href="{gerar_link_google(d,e)}" target="_blank">🔔 ADICIONAR AO GOOGLE CALENDAR</a></div>',unsafe_allow_html=True)
     st.markdown('''<div class="footer-premium"><div class="footer-grid"><div><div class="footer-title">📅 ORGANIZE-SE</div><div class="footer-text">Planeje sua participação e acompanhe ensaios e avisos importantes.</div></div><div><div class="footer-title">💬 DÚVIDAS OU SUGESTÕES</div><div class="footer-text">Entre em contato com a administração da sua localidade.</div></div><div><div class="footer-title">♥ FEITO COM DEDICAÇÃO</div><div class="footer-text">Uma agenda simples e organizada para servir à irmandade.</div></div></div><div class="footer-bottom">Agenda Musical • Região de Jaciara - MT</div></div>''',unsafe_allow_html=True)
-else:
-    st.markdown('<div class="admin-shell" style="padding:22px;margin-top:16px"><div class="section-title">🔐 PAINEL ADMINISTRATIVO</div>',unsafe_allow_html=True)
-    if not _admin_password() or not _admin_secret():st.warning("Configure ADMIN_PASSWORD e SUPABASE_SECRET_KEY nos Secrets do Streamlit.")
+elif st.session_state.nav=="Admin":
+    st.markdown('<div class="admin-shell" style="padding:22px;margin-top:16px"><div class="section-title">⚙️ PAINEL ADMINISTRATIVO</div>',unsafe_allow_html=True)
+    if not _admin_secret():
+        st.warning("SUPABASE_SECRET_KEY não configurada nos Secrets do Streamlit.")
+    elif not eh_admin():
+        st.warning("Seu usuário não possui permissão de administrador.")
     else:
-        senha=st.text_input("Senha de Acesso",type="password")
-        if senha==_admin_password():
-            st.success("✅ Acesso liberado");mostrar_notificacao();st.session_state.ano_base=st.number_input("Ano de Referência",2020,2100,int(st.session_state.ano_base),step=1);abas=st.tabs(["➕ Novo Evento","📝 Avisos","✏️ Gerenciar Eventos","📥 Downloads"])
-            with abas[0]:
-                with st.form("novo",clear_on_submit=True):
-                    nome=st.text_input("Nome","ENSAIO LOCAL");local=st.text_input("Local");dia=st.selectbox("Dia",range(7),format_func=lambda x:DIAS_SEMANA_PT[x]);semana=st.selectbox("Semana",[1,2,3,4,5]);hora=st.text_input("Hora","19:30 HRS");freq=st.selectbox("Frequência",FREQUENCIAS)
-                    if st.form_submit_button("💾 Salvar Evento",use_container_width=True):
-                        if not local.strip():st.error("Informe o local.")
-                        else:
-                            try:inserir_evento({"nome":nome.strip().upper(),"local":local.strip().upper(),"dia_sem":dia,"semana":semana,"hora":hora.strip().upper(),"interc":freq});definir_notificacao("✅ Evento salvo com sucesso!");st.rerun()
-                            except Exception as e:st.error(f"Erro ao salvar: {e}")
-            with abas[1]:
-                mes=st.selectbox("Mês",range(1,13),format_func=lambda x:NOMES_MESES[x]);av=st.text_area("Aviso",value=avisos.get(mes,""));c1,c2=st.columns(2)
-                if c1.button("💾 Salvar Aviso",use_container_width=True):
-                    try:salvar_aviso(mes,av);definir_notificacao("✅ Aviso salvo com sucesso!");st.rerun()
-                    except Exception as e:st.error(f"Erro: {e}")
-                if c2.button("🗑️ Apagar Aviso",use_container_width=True):
-                    try:excluir_aviso(mes);definir_notificacao("✅ Aviso excluído com sucesso!");st.rerun()
-                    except Exception as e:st.error(f"Erro: {e}")
-            with abas[2]:
-                if not eventos:st.info("Nenhum evento cadastrado.")
+    st.success("✅ Acesso administrativo liberado");mostrar_notificacao();st.session_state.ano_base=st.number_input("Ano de Referência",2020,2100,int(st.session_state.ano_base),step=1);abas=st.tabs(["➕ Novo Evento","📝 Avisos","✏️ Gerenciar Eventos","📥 Downloads"])
+    with abas[0]:
+        with st.form("novo",clear_on_submit=True):
+            nome=st.text_input("Nome","ENSAIO LOCAL");local=st.text_input("Local");dia=st.selectbox("Dia",range(7),format_func=lambda x:DIAS_SEMANA_PT[x]);semana=st.selectbox("Semana",[1,2,3,4,5]);hora=st.text_input("Hora","19:30 HRS");freq=st.selectbox("Frequência",FREQUENCIAS)
+            if st.form_submit_button("💾 Salvar Evento",use_container_width=True):
+                if not local.strip():st.error("Informe o local.")
                 else:
-                    op={e["id"]:f"{e['local']} — {e['semana']}ª {DIAS_SEMANA_CURTO[int(e['dia_sem'])]} — {e['hora']}" for e in eventos};eid=st.selectbox("Selecione o evento",list(op),format_func=lambda x:op[x]);evt=next(e for e in eventos if e["id"]==eid)
-                    with st.form(f"editar_{eid}"):
-                        en=st.text_input("Nome",evt["nome"]);el=st.text_input("Local",evt["local"]);ed=st.selectbox("Dia",range(7),index=int(evt["dia_sem"]),format_func=lambda x:DIAS_SEMANA_PT[x]);es=st.selectbox("Semana",[1,2,3,4,5],index=int(evt["semana"])-1);eh=st.text_input("Hora",evt["hora"]);ef=st.selectbox("Frequência",FREQUENCIAS,index=FREQUENCIAS.index(evt["interc"]))
-                        if st.form_submit_button("✅ SALVAR ALTERAÇÕES",use_container_width=True):
-                            if not el.strip():st.error("Informe o local.")
-                            else:
-                                try:atualizar_evento(eid,{"nome":en.strip().upper(),"local":el.strip().upper(),"dia_sem":ed,"semana":es,"hora":eh.strip().upper(),"interc":ef});definir_notificacao("✅ Alterações salvas com sucesso!");st.rerun()
-                                except Exception as e:st.error(f"Erro ao atualizar: {e}")
-                    st.divider();st.warning(f"Excluir permanentemente: {evt['nome']} — {evt['local']}");conf=st.checkbox("Confirmo que desejo excluir este evento",key=f"confirmar_exclusao_{eid}")
-                    if st.button("🗑️ EXCLUIR EVENTO",use_container_width=True,disabled=not conf,key=f"excluir_{eid}"):
-                        try:excluir_evento(eid);definir_notificacao("✅ Evento excluído com sucesso!");st.rerun()
-                        except Exception as e:st.error(f"Erro ao excluir: {e}")
-            with abas[3]:
-                try:st.download_button("⬇️ Baixar Excel",gerar_excel(st.session_state.ano_base,eventos,avisos),f"Calendario_{st.session_state.ano_base}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",use_container_width=True)
-                except Exception as e:st.error(f"Não foi possível gerar o Excel: {e}")
-                try:st.download_button("⬇️ Baixar PDF",gerar_pdf(st.session_state.ano_base,eventos,avisos),f"Calendario_{st.session_state.ano_base}.pdf",mime="application/pdf",use_container_width=True)
-                except Exception as e:st.error(f"Não foi possível gerar o PDF: {e}")
-        elif senha:st.error("❌ Senha incorreta")
+                    try:inserir_evento({"nome":nome.strip().upper(),"local":local.strip().upper(),"dia_sem":dia,"semana":semana,"hora":hora.strip().upper(),"interc":freq});definir_notificacao("✅ Evento salvo com sucesso!");st.rerun()
+                    except Exception as e:st.error(f"Erro ao salvar: {e}")
+    with abas[1]:
+        mes=st.selectbox("Mês",range(1,13),format_func=lambda x:NOMES_MESES[x]);av=st.text_area("Aviso",value=avisos.get(mes,""));c1,c2=st.columns(2)
+        if c1.button("💾 Salvar Aviso",use_container_width=True):
+            try:salvar_aviso(mes,av);definir_notificacao("✅ Aviso salvo com sucesso!");st.rerun()
+            except Exception as e:st.error(f"Erro: {e}")
+        if c2.button("🗑️ Apagar Aviso",use_container_width=True):
+            try:excluir_aviso(mes);definir_notificacao("✅ Aviso excluído com sucesso!");st.rerun()
+            except Exception as e:st.error(f"Erro: {e}")
+    with abas[2]:
+        if not eventos:st.info("Nenhum evento cadastrado.")
+        else:
+            op={e["id"]:f"{e['local']} — {e['semana']}ª {DIAS_SEMANA_CURTO[int(e['dia_sem'])]} — {e['hora']}" for e in eventos};eid=st.selectbox("Selecione o evento",list(op),format_func=lambda x:op[x]);evt=next(e for e in eventos if e["id"]==eid)
+            with st.form(f"editar_{eid}"):
+                en=st.text_input("Nome",evt["nome"]);el=st.text_input("Local",evt["local"]);ed=st.selectbox("Dia",range(7),index=int(evt["dia_sem"]),format_func=lambda x:DIAS_SEMANA_PT[x]);es=st.selectbox("Semana",[1,2,3,4,5],index=int(evt["semana"])-1);eh=st.text_input("Hora",evt["hora"]);ef=st.selectbox("Frequência",FREQUENCIAS,index=FREQUENCIAS.index(evt["interc"]))
+                if st.form_submit_button("✅ SALVAR ALTERAÇÕES",use_container_width=True):
+                    if not el.strip():st.error("Informe o local.")
+                    else:
+                        try:atualizar_evento(eid,{"nome":en.strip().upper(),"local":el.strip().upper(),"dia_sem":ed,"semana":es,"hora":eh.strip().upper(),"interc":ef});definir_notificacao("✅ Alterações salvas com sucesso!");st.rerun()
+                        except Exception as e:st.error(f"Erro ao atualizar: {e}")
+            st.divider();st.warning(f"Excluir permanentemente: {evt['nome']} — {evt['local']}");conf=st.checkbox("Confirmo que desejo excluir este evento",key=f"confirmar_exclusao_{eid}")
+            if st.button("🗑️ EXCLUIR EVENTO",use_container_width=True,disabled=not conf,key=f"excluir_{eid}"):
+                try:excluir_evento(eid);definir_notificacao("✅ Evento excluído com sucesso!");st.rerun()
+                except Exception as e:st.error(f"Erro ao excluir: {e}")
+    with abas[3]:
+        try:st.download_button("⬇️ Baixar Excel",gerar_excel(st.session_state.ano_base,eventos,avisos),f"Calendario_{st.session_state.ano_base}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",use_container_width=True)
+        except Exception as e:st.error(f"Não foi possível gerar o Excel: {e}")
+        try:st.download_button("⬇️ Baixar PDF",gerar_pdf(st.session_state.ano_base,eventos,avisos),f"Calendario_{st.session_state.ano_base}.pdf",mime="application/pdf",use_container_width=True)
+        except Exception as e:st.error(f"Não foi possível gerar o PDF: {e}")
     st.markdown('</div>',unsafe_allow_html=True)
