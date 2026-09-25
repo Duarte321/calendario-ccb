@@ -1,8 +1,15 @@
+import base64
+import hashlib
+import hmac
+import secrets
+from urllib.parse import quote
+
 import requests
 import streamlit as st
 
 SUPABASE_URL = "https://ovnwnzqjjjtfqjodvusi.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_uBqke5HDz9U-xSKjxhzUww_-Y0qW367"
+APP_URL = "https://calendario-ccb-4dnxiyyyxfshae2pfswcwf.streamlit.app"
 
 def _headers(token=None):
     key = SUPABASE_PUBLISHABLE_KEY
@@ -41,9 +48,108 @@ def logout():
     for key in ("access_token", "refresh_token", "auth_user", "perfil"):
         st.session_state.pop(key, None)
 
+def _b64url(data):
+    return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
+
+def _recovery_secret():
+    return st.secrets.get("RECOVERY_SECRET", "") or st.secrets.get("SUPABASE_SECRET_KEY", "")
+
+def _recovery_verifier(recovery_id):
+    segredo=_recovery_secret()
+    if not segredo:
+        return None
+    digest=hmac.new(segredo.encode("utf-8"),recovery_id.encode("utf-8"),hashlib.sha256).digest()
+    return _b64url(digest)
+
+def enviar_recuperacao(email):
+    email=(email or "").strip()
+    if not email:
+        return False,"Informe seu e-mail."
+    verifier_id=secrets.token_urlsafe(18)
+    verifier=_recovery_verifier(verifier_id)
+    if not verifier:
+        return False,"Recuperação de senha ainda não está configurada no servidor."
+    challenge=_b64url(hashlib.sha256(verifier.encode("utf-8")).digest())
+    redirect_to=f"{APP_URL}/?recovery_id={quote(verifier_id)}"
+    r=requests.post(
+        f"{SUPABASE_URL}/auth/v1/recover",
+        params={"redirect_to":redirect_to},
+        headers=_headers(),
+        json={"email":email,"code_challenge":challenge,"code_challenge_method":"s256"},
+        timeout=15,
+    )
+    if r.ok:
+        return True,"Se esse e-mail estiver cadastrado, você receberá um link para redefinir sua senha."
+    if r.status_code==429:
+        return False,"Aguarde um pouco antes de solicitar outro e-mail de recuperação."
+    return False,"Não foi possível enviar o e-mail de recuperação agora."
+
+def _processar_callback_recuperacao():
+    try:
+        code=st.query_params.get("code")
+        recovery_id=st.query_params.get("recovery_id")
+    except Exception:
+        return
+    if not code or not recovery_id:
+        return
+    verifier=_recovery_verifier(recovery_id)
+    if not verifier:
+        st.session_state["recovery_error"]="Não foi possível validar a recuperação de senha."
+        return
+    r=requests.post(
+        f"{SUPABASE_URL}/auth/v1/token?grant_type=pkce",
+        headers=_headers(),
+        json={"auth_code":code,"code_verifier":verifier},
+        timeout=15,
+    )
+    try:
+        st.query_params.clear()
+    except Exception:
+        pass
+    if r.ok:
+        data=r.json()
+        st.session_state["recovery_access_token"]=data.get("access_token")
+        st.session_state["recovery_error"]=None
+    else:
+        st.session_state["recovery_error"]="O link de recuperação é inválido ou expirou."
+
+def _tela_nova_senha():
+    access_token=st.session_state.get("recovery_access_token")
+    if not access_token:
+        return False
+    st.markdown("## 🔐 Criar nova senha")
+    st.caption("Digite uma nova senha para sua conta.")
+    with st.form("nova_senha_form"):
+        nova=st.text_input("Nova senha",type="password")
+        confirmar=st.text_input("Confirmar nova senha",type="password")
+        salvar=st.form_submit_button("SALVAR NOVA SENHA",use_container_width=True,type="primary")
+    if salvar:
+        if len(nova)<8:
+            st.error("Use uma senha com pelo menos 8 caracteres.")
+        elif nova!=confirmar:
+            st.error("As senhas não conferem.")
+        else:
+            r=requests.put(
+                f"{SUPABASE_URL}/auth/v1/user",
+                headers={"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":f"Bearer {access_token}","Content-Type":"application/json"},
+                json={"password":nova},
+                timeout=15,
+            )
+            if r.ok:
+                st.session_state.pop("recovery_access_token",None)
+                st.session_state["password_reset_success"]=True
+                st.rerun()
+            else:
+                st.error("Não foi possível alterar a senha. Solicite um novo link de recuperação.")
+    st.stop()
+
 def exigir_login():
+    _processar_callback_recuperacao()
+    _tela_nova_senha()
+
     if st.session_state.get("access_token"):
         return True
+
     st.markdown("""
     <style>
     [data-testid="stSidebar"]{display:none}
@@ -61,6 +167,31 @@ def exigir_login():
     </div>
     <div class="login-info">Acesse a agenda, registros de ensaios e aulas do MSA em um só lugar.</div>
     """, unsafe_allow_html=True)
+
+    if st.session_state.pop("password_reset_success",False):
+        st.success("Senha alterada com sucesso. Entre com sua nova senha.")
+
+    erro_rec=st.session_state.pop("recovery_error",None)
+    if erro_rec:
+        st.error(erro_rec)
+
+    modo=st.session_state.get("login_mode","login")
+
+    if modo=="recovery":
+        st.markdown("### Esqueci minha senha")
+        st.caption("Informe o e-mail da sua conta. Enviaremos um link seguro para você criar uma nova senha.")
+        with st.form("recovery_form"):
+            email_rec=st.text_input("E-mail",placeholder="seuemail@exemplo.com")
+            enviar=st.form_submit_button("ENVIAR LINK DE RECUPERAÇÃO",use_container_width=True,type="primary")
+        if enviar:
+            ok,msg=enviar_recuperacao(email_rec)
+            if ok: st.success(msg)
+            else: st.error(msg)
+        if st.button("← Voltar para o login",use_container_width=True):
+            st.session_state["login_mode"]="login"
+            st.rerun()
+        st.stop()
+
     with st.form("login_global"):
         email=st.text_input("E-mail",placeholder="seuemail@exemplo.com")
         senha=st.text_input("Senha",type="password",placeholder="Digite sua senha")
@@ -70,6 +201,11 @@ def exigir_login():
         if ok:
             st.rerun()
         st.error(erro)
+
+    if st.button("🔑 Esqueci minha senha",use_container_width=True):
+        st.session_state["login_mode"]="recovery"
+        st.rerun()
+
     st.caption("🔒 Acesso restrito a usuários autorizados.")
     st.stop()
 
