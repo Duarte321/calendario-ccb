@@ -22,12 +22,21 @@ st.markdown(
     """
     <style>
     [data-testid="stSidebar"]{display:none}
-    .block-container{max-width:1320px;padding-top:1rem;padding-bottom:2rem}
+    .block-container{max-width:1320px;padding-top:3.8rem;padding-bottom:2rem}
 
     .rm-topbar{
-        display:flex;align-items:center;justify-content:space-between;
-        padding:8px 2px 16px;color:#64748b;font-size:13px
+        background:#ffffff;border:1px solid #e6ebf0;border-radius:16px;
+        padding:10px 14px;margin:0 0 18px;
+        box-shadow:0 8px 22px rgba(15,23,42,.05);
+        color:#64748b;font-size:13px
     }
+    .rm-user{
+        text-align:center;color:#64748b;padding-top:10px;font-size:13px;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+    }
+    .rm-nav-note{font-size:11px;color:#94a3b8;text-align:center;margin-top:2px}
+    div[data-testid="stHorizontalBlock"]:has(.rm-user){align-items:center}
+
     .rm-hero{
         background:linear-gradient(135deg,#06233b 0%,#0b3556 55%,#0e4268 100%);
         border:1px solid rgba(226,179,63,.28);border-radius:24px;
@@ -117,9 +126,10 @@ st.markdown(
 )
 
 # ---------- Navegação ----------
-top1, top2, top3 = st.columns([1.4, 6.5, 1.2])
+st.markdown('<div class="rm-topbar">', unsafe_allow_html=True)
+top1, top2, top3 = st.columns([1.45, 6.1, 1.45], gap="medium")
 with top1:
-    if st.button("← PAINEL", use_container_width=True):
+    if st.button("← VOLTAR AO PAINEL", use_container_width=True, key="rm_back"):
         st.session_state["nav"] = "Painel"
         st.switch_page("app.py")
 with top2:
@@ -127,13 +137,16 @@ with top2:
     nome = perfil.get("nome") or (st.session_state.get("auth_user") or {}).get("email", "Usuário")
     papel = "Administrador" if eh_admin() else "Usuário"
     st.markdown(
-        f"<div style='text-align:center;color:#64748b;padding-top:9px'>👤 {html.escape(str(nome))} • {papel}</div>",
+        f'<div class="rm-user">👤 {html.escape(str(nome))} &nbsp;•&nbsp; {papel}</div>'
+        '<div class="rm-nav-note">Registros Musicais</div>',
         unsafe_allow_html=True,
     )
 with top3:
-    if st.button("🚪 SAIR", use_container_width=True):
+    if st.button("🚪 SAIR", use_container_width=True, key="rm_logout"):
         logout()
+        st.session_state["nav"] = "Painel"
         st.switch_page("app.py")
+st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ---------- Supabase ----------
