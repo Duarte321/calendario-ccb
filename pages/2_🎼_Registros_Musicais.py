@@ -118,7 +118,8 @@ with tab1:
             c1,c2,c3=st.columns(3)
             c1.metric("Músicos",x.get("total_musicos") or 0)
             c2.metric("Organistas",x.get("total_organistas") or 0)
-            c3.metric("Total",x.get("total_participantes") or 0)\n            detalhes_registro(x)
+            c3.metric("Total",x.get("total_participantes") or 0)
+            detalhes_registro(x)
 
 with tab2:
     st.subheader("Histórico de Aulas do MSA")
@@ -129,7 +130,8 @@ with tab2:
             if x.get("instrutor"): st.write(f"**Instrutor(a):** {x['instrutor']}")
             if x.get("assunto"): st.write(f"**Assunto:** {x['assunto']}")
             st.write(x.get("resumo") or "Sem resumo.")
-            st.metric("Participantes",x.get("total_participantes") or 0)\n            detalhes_registro(x)
+            st.metric("Participantes",x.get("total_participantes") or 0)
+            detalhes_registro(x)
 
 with tab3:
     st.subheader("Novo Registro")
