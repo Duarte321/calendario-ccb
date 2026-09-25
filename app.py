@@ -258,41 +258,41 @@ elif st.session_state.nav=="Admin":
     elif not eh_admin():
         st.warning("Seu usuário não possui permissão de administrador.")
     else:
-    st.success("✅ Acesso administrativo liberado");mostrar_notificacao();st.session_state.ano_base=st.number_input("Ano de Referência",2020,2100,int(st.session_state.ano_base),step=1);abas=st.tabs(["➕ Novo Evento","📝 Avisos","✏️ Gerenciar Eventos","📥 Downloads"])
-    with abas[0]:
-        with st.form("novo",clear_on_submit=True):
-            nome=st.text_input("Nome","ENSAIO LOCAL");local=st.text_input("Local");dia=st.selectbox("Dia",range(7),format_func=lambda x:DIAS_SEMANA_PT[x]);semana=st.selectbox("Semana",[1,2,3,4,5]);hora=st.text_input("Hora","19:30 HRS");freq=st.selectbox("Frequência",FREQUENCIAS)
-            if st.form_submit_button("💾 Salvar Evento",use_container_width=True):
-                if not local.strip():st.error("Informe o local.")
-                else:
-                    try:inserir_evento({"nome":nome.strip().upper(),"local":local.strip().upper(),"dia_sem":dia,"semana":semana,"hora":hora.strip().upper(),"interc":freq});definir_notificacao("✅ Evento salvo com sucesso!");st.rerun()
-                    except Exception as e:st.error(f"Erro ao salvar: {e}")
-    with abas[1]:
-        mes=st.selectbox("Mês",range(1,13),format_func=lambda x:NOMES_MESES[x]);av=st.text_area("Aviso",value=avisos.get(mes,""));c1,c2=st.columns(2)
-        if c1.button("💾 Salvar Aviso",use_container_width=True):
-            try:salvar_aviso(mes,av);definir_notificacao("✅ Aviso salvo com sucesso!");st.rerun()
-            except Exception as e:st.error(f"Erro: {e}")
-        if c2.button("🗑️ Apagar Aviso",use_container_width=True):
-            try:excluir_aviso(mes);definir_notificacao("✅ Aviso excluído com sucesso!");st.rerun()
-            except Exception as e:st.error(f"Erro: {e}")
-    with abas[2]:
-        if not eventos:st.info("Nenhum evento cadastrado.")
-        else:
-            op={e["id"]:f"{e['local']} — {e['semana']}ª {DIAS_SEMANA_CURTO[int(e['dia_sem'])]} — {e['hora']}" for e in eventos};eid=st.selectbox("Selecione o evento",list(op),format_func=lambda x:op[x]);evt=next(e for e in eventos if e["id"]==eid)
-            with st.form(f"editar_{eid}"):
-                en=st.text_input("Nome",evt["nome"]);el=st.text_input("Local",evt["local"]);ed=st.selectbox("Dia",range(7),index=int(evt["dia_sem"]),format_func=lambda x:DIAS_SEMANA_PT[x]);es=st.selectbox("Semana",[1,2,3,4,5],index=int(evt["semana"])-1);eh=st.text_input("Hora",evt["hora"]);ef=st.selectbox("Frequência",FREQUENCIAS,index=FREQUENCIAS.index(evt["interc"]))
-                if st.form_submit_button("✅ SALVAR ALTERAÇÕES",use_container_width=True):
-                    if not el.strip():st.error("Informe o local.")
+        st.success("✅ Acesso administrativo liberado");mostrar_notificacao();st.session_state.ano_base=st.number_input("Ano de Referência",2020,2100,int(st.session_state.ano_base),step=1);abas=st.tabs(["➕ Novo Evento","📝 Avisos","✏️ Gerenciar Eventos","📥 Downloads"])
+        with abas[0]:
+            with st.form("novo",clear_on_submit=True):
+                nome=st.text_input("Nome","ENSAIO LOCAL");local=st.text_input("Local");dia=st.selectbox("Dia",range(7),format_func=lambda x:DIAS_SEMANA_PT[x]);semana=st.selectbox("Semana",[1,2,3,4,5]);hora=st.text_input("Hora","19:30 HRS");freq=st.selectbox("Frequência",FREQUENCIAS)
+                if st.form_submit_button("💾 Salvar Evento",use_container_width=True):
+                    if not local.strip():st.error("Informe o local.")
                     else:
-                        try:atualizar_evento(eid,{"nome":en.strip().upper(),"local":el.strip().upper(),"dia_sem":ed,"semana":es,"hora":eh.strip().upper(),"interc":ef});definir_notificacao("✅ Alterações salvas com sucesso!");st.rerun()
-                        except Exception as e:st.error(f"Erro ao atualizar: {e}")
-            st.divider();st.warning(f"Excluir permanentemente: {evt['nome']} — {evt['local']}");conf=st.checkbox("Confirmo que desejo excluir este evento",key=f"confirmar_exclusao_{eid}")
-            if st.button("🗑️ EXCLUIR EVENTO",use_container_width=True,disabled=not conf,key=f"excluir_{eid}"):
-                try:excluir_evento(eid);definir_notificacao("✅ Evento excluído com sucesso!");st.rerun()
-                except Exception as e:st.error(f"Erro ao excluir: {e}")
-    with abas[3]:
-        try:st.download_button("⬇️ Baixar Excel",gerar_excel(st.session_state.ano_base,eventos,avisos),f"Calendario_{st.session_state.ano_base}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",use_container_width=True)
-        except Exception as e:st.error(f"Não foi possível gerar o Excel: {e}")
-        try:st.download_button("⬇️ Baixar PDF",gerar_pdf(st.session_state.ano_base,eventos,avisos),f"Calendario_{st.session_state.ano_base}.pdf",mime="application/pdf",use_container_width=True)
-        except Exception as e:st.error(f"Não foi possível gerar o PDF: {e}")
+                        try:inserir_evento({"nome":nome.strip().upper(),"local":local.strip().upper(),"dia_sem":dia,"semana":semana,"hora":hora.strip().upper(),"interc":freq});definir_notificacao("✅ Evento salvo com sucesso!");st.rerun()
+                        except Exception as e:st.error(f"Erro ao salvar: {e}")
+        with abas[1]:
+            mes=st.selectbox("Mês",range(1,13),format_func=lambda x:NOMES_MESES[x]);av=st.text_area("Aviso",value=avisos.get(mes,""));c1,c2=st.columns(2)
+            if c1.button("💾 Salvar Aviso",use_container_width=True):
+                try:salvar_aviso(mes,av);definir_notificacao("✅ Aviso salvo com sucesso!");st.rerun()
+                except Exception as e:st.error(f"Erro: {e}")
+            if c2.button("🗑️ Apagar Aviso",use_container_width=True):
+                try:excluir_aviso(mes);definir_notificacao("✅ Aviso excluído com sucesso!");st.rerun()
+                except Exception as e:st.error(f"Erro: {e}")
+        with abas[2]:
+            if not eventos:st.info("Nenhum evento cadastrado.")
+            else:
+                op={e["id"]:f"{e['local']} — {e['semana']}ª {DIAS_SEMANA_CURTO[int(e['dia_sem'])]} — {e['hora']}" for e in eventos};eid=st.selectbox("Selecione o evento",list(op),format_func=lambda x:op[x]);evt=next(e for e in eventos if e["id"]==eid)
+                with st.form(f"editar_{eid}"):
+                    en=st.text_input("Nome",evt["nome"]);el=st.text_input("Local",evt["local"]);ed=st.selectbox("Dia",range(7),index=int(evt["dia_sem"]),format_func=lambda x:DIAS_SEMANA_PT[x]);es=st.selectbox("Semana",[1,2,3,4,5],index=int(evt["semana"])-1);eh=st.text_input("Hora",evt["hora"]);ef=st.selectbox("Frequência",FREQUENCIAS,index=FREQUENCIAS.index(evt["interc"]))
+                    if st.form_submit_button("✅ SALVAR ALTERAÇÕES",use_container_width=True):
+                        if not el.strip():st.error("Informe o local.")
+                        else:
+                            try:atualizar_evento(eid,{"nome":en.strip().upper(),"local":el.strip().upper(),"dia_sem":ed,"semana":es,"hora":eh.strip().upper(),"interc":ef});definir_notificacao("✅ Alterações salvas com sucesso!");st.rerun()
+                            except Exception as e:st.error(f"Erro ao atualizar: {e}")
+                st.divider();st.warning(f"Excluir permanentemente: {evt['nome']} — {evt['local']}");conf=st.checkbox("Confirmo que desejo excluir este evento",key=f"confirmar_exclusao_{eid}")
+                if st.button("🗑️ EXCLUIR EVENTO",use_container_width=True,disabled=not conf,key=f"excluir_{eid}"):
+                    try:excluir_evento(eid);definir_notificacao("✅ Evento excluído com sucesso!");st.rerun()
+                    except Exception as e:st.error(f"Erro ao excluir: {e}")
+        with abas[3]:
+            try:st.download_button("⬇️ Baixar Excel",gerar_excel(st.session_state.ano_base,eventos,avisos),f"Calendario_{st.session_state.ano_base}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",use_container_width=True)
+            except Exception as e:st.error(f"Não foi possível gerar o Excel: {e}")
+            try:st.download_button("⬇️ Baixar PDF",gerar_pdf(st.session_state.ano_base,eventos,avisos),f"Calendario_{st.session_state.ano_base}.pdf",mime="application/pdf",use_container_width=True)
+            except Exception as e:st.error(f"Não foi possível gerar o PDF: {e}")
     st.markdown('</div>',unsafe_allow_html=True)
