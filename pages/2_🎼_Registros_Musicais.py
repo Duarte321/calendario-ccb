@@ -42,9 +42,51 @@ def salvar_presencas(registro_id,texto,categoria):
         r=requests.post(f"{SUPABASE_URL}/rest/v1/registro_presencas",headers=headers(),json={"registro_id":registro_id,"nome":nome,"categoria":categoria},timeout=15)
         r.raise_for_status()
 
+def listar_arquivos(registro_id):
+    r=requests.get(f"{SUPABASE_URL}/rest/v1/registro_arquivos",headers=headers(),params={"registro_id":f"eq.{registro_id}","select":"*","order":"criado_em.asc"},timeout=15)
+    return r.json() if r.ok else []
+
+def baixar_arquivo(caminho):
+    r=requests.get(f"{SUPABASE_URL}/storage/v1/object/authenticated/registros-musicais/{caminho}",headers={"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":f"Bearer {token()}"},timeout=30)
+    return r.content if r.ok else None
+
+def atualizar_registro(registro_id,payload):
+    r=requests.patch(f"{SUPABASE_URL}/rest/v1/registros_musicais",headers=headers("return=representation"),params={"id":f"eq.{registro_id}"},json=payload,timeout=15)
+    r.raise_for_status()
+
 def excluir_registro(registro_id):
     r=requests.delete(f"{SUPABASE_URL}/rest/v1/registros_musicais",headers=headers("return=representation"),params={"id":f"eq.{registro_id}"},timeout=15)
     r.raise_for_status()
+
+def detalhes_registro(x):
+    pres=listar_presencas(x["id"])
+    if pres:
+        st.markdown("**👥 Lista de presença**")
+        for p in pres: st.write(f"• {p['nome']} — {p.get('categoria') or 'Participante'}")
+    arquivos=listar_arquivos(x["id"])
+    imagens=[]
+    for arq in arquivos:
+        dados=baixar_arquivo(arq["caminho"])
+        if not dados: continue
+        nome=arq.get("nome_arquivo") or "arquivo"
+        if nome.lower().endswith((".jpg",".jpeg",".png",".webp")): imagens.append((dados,nome))
+        else: st.download_button(f"📄 {nome}",dados,file_name=nome,key=f"dl_{arq['id']}")
+    if imagens:
+        st.markdown("**📸 Galeria de fotos**")
+        cols=st.columns(3)
+        for i,(img,nome) in enumerate(imagens): cols[i%3].image(img,caption=nome,use_container_width=True)
+    if eh_admin():
+        with st.expander("⚙️ Editar / Excluir"):
+            novo_titulo=st.text_input("Título",x["titulo"],key=f"tit_{x['id']}")
+            novo_local=st.text_input("Localidade",x["local"],key=f"loc_{x['id']}")
+            novo_resumo=st.text_area("Resumo",x.get("resumo") or "",key=f"res_{x['id']}")
+            c1,c2=st.columns(2)
+            if c1.button("💾 Salvar alterações",key=f"save_{x['id']}"):
+                atualizar_registro(x["id"],{"titulo":novo_titulo,"local":novo_local,"resumo":novo_resumo or None})
+                st.success("Alterações salvas."); st.rerun()
+            confirmar=c2.checkbox("Confirmar exclusão",key=f"conf_{x['id']}")
+            if c2.button("🗑️ Excluir",key=f"del_{x['id']}",disabled=not confirmar):
+                excluir_registro(x["id"]); st.success("Registro excluído."); st.rerun()
 
 st.title("🎼 Registros Musicais")
 st.caption("Arquivo histórico privado • Ensaios musicais e aulas do MSA")
@@ -76,7 +118,7 @@ with tab1:
             c1,c2,c3=st.columns(3)
             c1.metric("Músicos",x.get("total_musicos") or 0)
             c2.metric("Organistas",x.get("total_organistas") or 0)
-            c3.metric("Total",x.get("total_participantes") or 0)
+            c3.metric("Total",x.get("total_participantes") or 0)\n            detalhes_registro(x)
 
 with tab2:
     st.subheader("Histórico de Aulas do MSA")
@@ -87,7 +129,7 @@ with tab2:
             if x.get("instrutor"): st.write(f"**Instrutor(a):** {x['instrutor']}")
             if x.get("assunto"): st.write(f"**Assunto:** {x['assunto']}")
             st.write(x.get("resumo") or "Sem resumo.")
-            st.metric("Participantes",x.get("total_participantes") or 0)
+            st.metric("Participantes",x.get("total_participantes") or 0)\n            detalhes_registro(x)
 
 with tab3:
     st.subheader("Novo Registro")
