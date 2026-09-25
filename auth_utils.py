@@ -50,6 +50,26 @@ def logout():
     for k in ("access_token","refresh_token","auth_user","perfil"):
         st.session_state.pop(k, None)
 
+def solicitar_acesso_inicial():
+    email = "lucasduarteccb123@hotmail.com"
+    st.info("Primeiro acesso: defina sua senha de administrador.")
+    with st.form("primeiro_acesso"):
+        senha = st.text_input("Criar senha", type="password")
+        confirmar = st.text_input("Confirmar senha", type="password")
+        criar = st.form_submit_button("ATIVAR MEU ACESSO", use_container_width=True, type="primary")
+    if criar:
+        if len(senha) < 8:
+            st.error("Use uma senha com pelo menos 8 caracteres.")
+        elif senha != confirmar:
+            st.error("As senhas não conferem.")
+        else:
+            r = requests.post(f"{SUPABASE_URL}/auth/v1/signup", headers=_headers(), json={"email": email, "password": senha, "data": {"nome": "Lucas Duarte"}}, timeout=15)
+            if r.ok:
+                st.success("Conta criada. Confira seu e-mail para confirmar o acesso e depois entre normalmente.")
+            else:
+                msg = r.json().get("msg") or r.json().get("message") or "Não foi possível ativar o acesso."
+                st.error(msg)
+
 def exigir_login():
     if st.session_state.get("access_token"):
         return True
@@ -64,7 +84,7 @@ def exigir_login():
         if ok:
             st.rerun()
         st.error(erro)
-    st.stop()
+    st.divider()\n    solicitar_acesso_inicial()\n    st.stop()
 
 def eh_admin():
     return (st.session_state.get("perfil") or {}).get("papel") == "admin"
