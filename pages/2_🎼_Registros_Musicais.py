@@ -1,8 +1,10 @@
 import streamlit as st
 from datetime import date
 import requests
+from auth_utils import exigir_login, eh_admin
 
 st.set_page_config(page_title="Registros Musicais", page_icon="🎼", layout="wide")
+exigir_login()
 st.title("🎼 Registros Musicais")
 st.caption("Arquivo histórico de ensaios musicais e aulas do MSA")
 
@@ -31,7 +33,9 @@ with tab3:
     resumo = st.text_area("Resumo / Observações")
     fotos = st.file_uploader("Fotos e documentos", type=["jpg","jpeg","png","webp","pdf"], accept_multiple_files=True)
     st.caption("O cadastro definitivo será liberado para administradores autenticados.")
-    st.button("💾 Salvar registro", disabled=True)
+    st.button("💾 Salvar registro", disabled=not eh_admin())
+    if not eh_admin():
+        st.caption("Somente administradores podem cadastrar ou alterar registros.")
 
 st.divider()
 st.caption("Agenda Musical • Região de Jaciara - MT")
