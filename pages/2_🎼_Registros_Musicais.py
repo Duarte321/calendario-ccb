@@ -283,8 +283,7 @@ def detalhes_registro(x):
         cols = st.columns(2)
         for i, p in enumerate(pres):
             categoria = p.get("categoria") or "Participante"
-            cols[i % 2].markdown(f"**{html.escape(p['nome'])}**  
-{html.escape(categoria)}")
+            cols[i % 2].markdown(f"**{html.escape(p['nome'])}**  \\n{html.escape(categoria)}")
 
     arquivos = listar_arquivos(x["id"])
     imagens = []
