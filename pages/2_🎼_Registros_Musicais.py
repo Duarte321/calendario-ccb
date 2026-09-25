@@ -33,14 +33,42 @@ def upload_arquivo(registro_id, arquivo, tipo):
     m=requests.post(f"{SUPABASE_URL}/rest/v1/registro_arquivos",headers=headers("return=representation"),json=meta,timeout=15)
     m.raise_for_status()
 
+def listar_presencas(registro_id):
+    r=requests.get(f"{SUPABASE_URL}/rest/v1/registro_presencas",headers=headers(),params={"registro_id":f"eq.{registro_id}","select":"*","order":"nome.asc"},timeout=15)
+    return r.json() if r.ok else []
+
+def salvar_presencas(registro_id,texto,categoria):
+    for nome in [n.strip() for n in texto.splitlines() if n.strip()]:
+        r=requests.post(f"{SUPABASE_URL}/rest/v1/registro_presencas",headers=headers(),json={"registro_id":registro_id,"nome":nome,"categoria":categoria},timeout=15)
+        r.raise_for_status()
+
+def excluir_registro(registro_id):
+    r=requests.delete(f"{SUPABASE_URL}/rest/v1/registros_musicais",headers=headers("return=representation"),params={"id":f"eq.{registro_id}"},timeout=15)
+    r.raise_for_status()
+
 st.title("🎼 Registros Musicais")
 st.caption("Arquivo histórico privado • Ensaios musicais e aulas do MSA")
 
 tab1,tab2,tab3=st.tabs(["🎵 Ensaios","🎓 Aulas MSA","➕ Novo Registro"])
 
+f1,f2,f3=st.columns(3)
+ano_filtro=f1.selectbox("Ano",["Todos"]+list(range(date.today().year,2020,-1)))
+mes_filtro=f2.selectbox("Mês",["Todos"]+list(range(1,13)))
+local_filtro=f3.text_input("🔎 Localidade")
+
+def filtrar(dados):
+    saida=[]
+    for x in dados:
+        y,m=map(int,x["data"].split("-")[:2])
+        if ano_filtro!="Todos" and y!=int(ano_filtro): continue
+        if mes_filtro!="Todos" and m!=int(mes_filtro): continue
+        if local_filtro and local_filtro.lower() not in x["local"].lower(): continue
+        saida.append(x)
+    return saida
+
 with tab1:
     st.subheader("Histórico de Ensaios")
-    dados=listar("ensaio")
+    dados=filtrar(listar("ensaio"))
     if not dados: st.info("Nenhum ensaio cadastrado ainda.")
     for x in dados:
         with st.expander(f"🎵 {x['data']} • {x['titulo']} — {x['local']}"):
@@ -52,7 +80,7 @@ with tab1:
 
 with tab2:
     st.subheader("Histórico de Aulas do MSA")
-    dados=listar("aula_msa")
+    dados=filtrar(listar("aula_msa"))
     if not dados: st.info("Nenhuma aula cadastrada ainda.")
     for x in dados:
         with st.expander(f"🎓 {x['data']} • {x['titulo']} — {x['local']}"):
@@ -82,6 +110,9 @@ with tab3:
         else:
             musicos=organistas=0
             participantes=st.number_input("Total de participantes",min_value=0,step=1)
+        st.markdown("#### 👥 Presença")
+        presencas=st.text_area("Nomes dos participantes (um por linha)",placeholder="Nome 1\nNome 2\nNome 3")
+        categoria_presenca=st.selectbox("Categoria da lista",["Participante","Músico","Organista","Instrutor(a)"])
         fotos=st.file_uploader("Fotos e documentos",type=["jpg","jpeg","png","webp","pdf"],accept_multiple_files=True)
         salvar=st.form_submit_button("💾 SALVAR REGISTRO",type="primary",use_container_width=True)
     if salvar:
@@ -92,6 +123,8 @@ with tab3:
                 uid=(st.session_state.get("auth_user") or {}).get("id")
                 payload={"tipo":"ensaio" if tipo_ui=="Ensaio Musical" else "aula_msa","data":data_reg.isoformat(),"local":local.strip(),"titulo":titulo.strip(),"instrutor":instrutor.strip() or None,"assunto":assunto.strip() or None,"resumo":resumo.strip() or None,"total_participantes":int(participantes),"total_musicos":int(musicos),"total_organistas":int(organistas),"criado_por":uid}
                 registro=salvar_registro(payload)
+                if presencas.strip():
+                    salvar_presencas(registro["id"],presencas,categoria_presenca)
                 for arq in fotos or []:
                     upload_arquivo(registro["id"],arq,"foto")
                 st.success("Registro salvo com sucesso! ✅")
