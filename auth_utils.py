@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import secrets
+import time
 from urllib.parse import quote
 
 import requests
@@ -180,13 +181,37 @@ def exigir_login():
     if modo=="recovery":
         st.markdown("### Esqueci minha senha")
         st.caption("Informe o e-mail da sua conta. Enviaremos um link seguro para você criar uma nova senha.")
+
+        agora=time.time()
+        ultimo_envio=st.session_state.get("recovery_last_sent_at",0)
+        restante=max(0,int(60-(agora-ultimo_envio))) if ultimo_envio else 0
+
         with st.form("recovery_form"):
             email_rec=st.text_input("E-mail",placeholder="seuemail@exemplo.com")
-            enviar=st.form_submit_button("ENVIAR LINK DE RECUPERAÇÃO",use_container_width=True,type="primary")
-        if enviar:
+            enviar=st.form_submit_button(
+                "ENVIAR LINK DE RECUPERAÇÃO" if restante==0 else f"AGUARDE {restante}s",
+                use_container_width=True,
+                type="primary",
+                disabled=restante>0,
+            )
+
+        if enviar and restante==0:
             ok,msg=enviar_recuperacao(email_rec)
-            if ok: st.success(msg)
-            else: st.error(msg)
+            if ok:
+                st.session_state["recovery_last_sent_at"]=time.time()
+                st.session_state["recovery_notice"]=msg
+                st.rerun()
+            else:
+                st.error(msg)
+
+        aviso=st.session_state.get("recovery_notice")
+        if aviso:
+            st.success(aviso)
+
+        if restante>0:
+            st.info(f"Para evitar bloqueios do servidor de e-mail, aguarde {restante} segundos antes de solicitar outro link.")
+            st.caption("A contagem é atualizada ao recarregar a página.")
+
         if st.button("← Voltar para o login",use_container_width=True):
             st.session_state["login_mode"]="login"
             st.rerun()
