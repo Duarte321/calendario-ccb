@@ -91,7 +91,11 @@ def detalhes_registro(x):
 st.title("🎼 Registros Musicais")
 st.caption("Arquivo histórico privado • Ensaios musicais e aulas do MSA")
 
-tab1,tab2,tab3=st.tabs(["🎵 Ensaios","🎓 Aulas MSA","➕ Novo Registro"])
+secao_padrao=st.session_state.get("registro_secao","Ensaios")
+opcoes=["Ensaios","Aulas MSA","Novo Registro"]
+indice=opcoes.index(secao_padrao) if secao_padrao in opcoes else 0
+secao=st.radio("Navegação",opcoes,index=indice,horizontal=True,label_visibility="collapsed")
+st.session_state["registro_secao"]=secao
 
 f1,f2,f3=st.columns(3)
 ano_filtro=f1.selectbox("Ano",["Todos"]+list(range(date.today().year,2020,-1)))
@@ -108,7 +112,7 @@ def filtrar(dados):
         saida.append(x)
     return saida
 
-with tab1:
+if secao=="Ensaios":
     st.subheader("Histórico de Ensaios")
     dados=filtrar(listar("ensaio"))
     if not dados: st.info("Nenhum ensaio cadastrado ainda.")
@@ -121,7 +125,7 @@ with tab1:
             c3.metric("Total",x.get("total_participantes") or 0)
             detalhes_registro(x)
 
-with tab2:
+elif secao=="Aulas MSA":
     st.subheader("Histórico de Aulas do MSA")
     dados=filtrar(listar("aula_msa"))
     if not dados: st.info("Nenhuma aula cadastrada ainda.")
@@ -133,7 +137,7 @@ with tab2:
             st.metric("Participantes",x.get("total_participantes") or 0)
             detalhes_registro(x)
 
-with tab3:
+elif secao=="Novo Registro":
     st.subheader("Novo Registro")
     if not eh_admin():
         st.warning("Somente administradores podem cadastrar registros.")
