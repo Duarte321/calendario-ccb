@@ -200,17 +200,31 @@ def exigir_login():
             if ok:
                 st.session_state["recovery_last_sent_at"]=time.time()
                 st.session_state["recovery_notice"]=msg
+                st.session_state.pop("recovery_rate_error",None)
                 st.rerun()
             else:
+                if "Aguarde" in msg:
+                    st.session_state["recovery_last_sent_at"]=time.time()
+                    st.session_state["recovery_rate_error"]="O Supabase limitou temporariamente novos e-mails. Aguarde 60 segundos e tente novamente."
+                    st.rerun()
                 st.error(msg)
 
         aviso=st.session_state.get("recovery_notice")
         if aviso:
             st.success(aviso)
 
+        erro_limite=st.session_state.get("recovery_rate_error")
+        if erro_limite:
+            st.warning(erro_limite)
+
+        agora=time.time()
+        ultimo_envio=st.session_state.get("recovery_last_sent_at",0)
+        restante=max(0,int(60-(agora-ultimo_envio))) if ultimo_envio else 0
         if restante>0:
-            st.info(f"Para evitar bloqueios do servidor de e-mail, aguarde {restante} segundos antes de solicitar outro link.")
-            st.caption("A contagem é atualizada ao recarregar a página.")
+            st.info(f"Você poderá solicitar outro link em aproximadamente {restante} segundos.")
+            st.caption("Recarregue a página para atualizar a contagem.")
+        elif erro_limite:
+            st.session_state.pop("recovery_rate_error",None)
 
         if st.button("← Voltar para o login",use_container_width=True):
             st.session_state["login_mode"]="login"
