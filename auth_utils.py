@@ -41,45 +41,36 @@ def logout():
     for key in ("access_token", "refresh_token", "auth_user", "perfil"):
         st.session_state.pop(key, None)
 
-def solicitar_acesso_inicial():
-    email = "lucasduarteccb123@hotmail.com"
-    st.info("Primeiro acesso: defina sua senha de administrador.")
-    with st.form("primeiro_acesso"):
-        senha = st.text_input("Criar senha", type="password")
-        confirmar = st.text_input("Confirmirmar senha", type="password")
-        criar = st.form_submit_button("ATIVAR MEU ACESSO", use_container_width=True, type="primary")
-    if criar:
-        if len(senha) < 8:
-            st.error("Use uma senha com pelo menos 8 caracteres.")
-        elif senha != confirmar:
-            st.error("As senhas não conferem.")
-        else:
-            r = requests.post(f"{SUPABASE_URL}/auth/v1/signup", headers=_headers(), json={"email": email, "password": senha, "data": {"nome": "Lucas Duarte"}}, timeout=15)
-            if r.ok:
-                st.success("Conta criada. Confira seu e-mail para confirmar o acesso e depois entre normalmente.")
-            else:
-                try:
-                    msg = r.json().get("msg") or r.json().get("message")
-                except Exception:
-                    msg = None
-                st.error(msg or "Não foi possível ativar o acesso.")
-
 def exigir_login():
     if st.session_state.get("access_token"):
         return True
-    st.markdown("## 🔐 Agenda Musical")
-    st.caption("Acesso restrito • Região de Jaciara - MT")
+    st.markdown("""
+    <style>
+    [data-testid="stSidebar"]{display:none}
+    .block-container{max-width:560px;padding-top:7vh}
+    .login-brand{text-align:center;padding:28px 10px 18px}
+    .login-icon{font-size:48px}
+    .login-title{font-family:Georgia,serif;font-size:38px;font-weight:800;color:#082d49;margin:8px 0 2px}
+    .login-sub{color:#b17b00;font-weight:700}
+    .login-info{text-align:center;color:#64748b;margin:20px 0}
+    </style>
+    <div class="login-brand">
+      <div class="login-icon">🎼</div>
+      <div class="login-title">Agenda Musical</div>
+      <div class="login-sub">Região de Jaciara - MT</div>
+    </div>
+    <div class="login-info">Acesse a agenda, registros de ensaios e aulas do MSA em um só lugar.</div>
+    """, unsafe_allow_html=True)
     with st.form("login_global"):
-        email = st.text_input("Usuário / E-mail")
-        senha = st.text_input("Senha", type="password")
-        entrar = st.form_submit_button("ENTRAR", use_container_width=True, type="primary")
+        email=st.text_input("E-mail",placeholder="seuemail@exemplo.com")
+        senha=st.text_input("Senha",type="password",placeholder="Digite sua senha")
+        entrar=st.form_submit_button("ENTRAR",use_container_width=True,type="primary")
     if entrar:
-        ok, erro = login(email, senha)
+        ok,erro=login(email,senha)
         if ok:
             st.rerun()
         st.error(erro)
-    st.divider()
-    solicitar_acesso_inicial()
+    st.caption("🔒 Acesso restrito a usuários autorizados.")
     st.stop()
 
 def eh_admin():
