@@ -3,10 +3,27 @@ import uuid
 from datetime import date
 import requests
 import streamlit as st
-from auth_utils import exigir_login, eh_admin, token, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
+from auth_utils import exigir_login, eh_admin, token, logout, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
 
 st.set_page_config(page_title="Registros Musicais", page_icon="🎼", layout="wide")
 exigir_login()
+st.markdown("<style>[data-testid='stSidebar']{display:none}.block-container{max-width:1300px;padding-top:1.2rem}</style>",unsafe_allow_html=True)
+
+top1,top2,top3=st.columns([1.5,6,1.2])
+with top1:
+    if st.button("← PAINEL",use_container_width=True):
+        st.session_state["nav"]="Painel"
+        st.switch_page("app.py")
+with top2:
+    perfil=st.session_state.get("perfil") or {}
+    nome=perfil.get("nome") or (st.session_state.get("auth_user") or {}).get("email","Usuário")
+    papel="Administrador" if eh_admin() else "Usuário"
+    st.markdown(f"<div style='text-align:center;color:#667085;padding-top:10px'>👤 {nome} • {papel}</div>",unsafe_allow_html=True)
+with top3:
+    if st.button("🚪 SAIR",use_container_width=True):
+        logout()
+        st.switch_page("app.py")
+
 
 def headers(prefer=None, content_type="application/json"):
     h={"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":f"Bearer {token()}","Content-Type":content_type}
