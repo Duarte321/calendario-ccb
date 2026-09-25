@@ -20,7 +20,8 @@ FREQUENCIAS=["Todos os Meses","Meses Ímpares","Meses Pares"]
 
 
 def _headers(key,prefer=None):
-    h={"apikey":key,"Authorization":f"Bearer {key}","Content-Type":"application/json"}
+    api_key=SUPABASE_PUBLISHABLE_KEY if key and key != SUPABASE_PUBLISHABLE_KEY else key
+    h={"apikey":api_key,"Authorization":f"Bearer {key}","Content-Type":"application/json"}
     if prefer:h["Prefer"]=prefer
     return h
 
