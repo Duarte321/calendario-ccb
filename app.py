@@ -74,6 +74,40 @@ def excluir_aviso(mes):
     if not k:raise RuntimeError("SUPABASE_SECRET_KEY não configurada.")
     r=requests.delete(f"{SUPABASE_URL}/rest/v1/calendario_avisos",params={"mes":f"eq.{int(mes)}"},headers=_headers(k),timeout=10);r.raise_for_status()
 
+def listar_usuarios_auth():
+    k=_admin_secret()
+    if not k:
+        raise RuntimeError("SUPABASE_SECRET_KEY não configurada.")
+    r=requests.get(
+        f"{SUPABASE_URL}/auth/v1/admin/users",
+        params={"page":1,"per_page":1000},
+        headers={"apikey":k,"Authorization":f"Bearer {k}"},
+        timeout=15,
+    )
+    r.raise_for_status()
+    dados=r.json()
+    return dados.get("users",[]) if isinstance(dados,dict) else []
+
+def redefinir_senha_usuario(email,nova_senha):
+    email=(email or "").strip().lower()
+    if not email:
+        raise ValueError("Informe o e-mail do usuário.")
+    if len(nova_senha)<8:
+        raise ValueError("A nova senha precisa ter pelo menos 8 caracteres.")
+    usuarios=listar_usuarios_auth()
+    usuario=next((u for u in usuarios if (u.get("email") or "").lower()==email),None)
+    if not usuario:
+        raise ValueError("Usuário não encontrado.")
+    k=_admin_secret()
+    r=requests.put(
+        f"{SUPABASE_URL}/auth/v1/admin/users/{usuario['id']}",
+        headers={"apikey":k,"Authorization":f"Bearer {k}","Content-Type":"application/json"},
+        json={"password":nova_senha},
+        timeout=15,
+    )
+    r.raise_for_status()
+    return usuario
+
 
 def calcular_eventos(ano,eventos):
     agenda={};calendar.setfirstweekday(calendar.SUNDAY)
@@ -258,7 +292,7 @@ elif st.session_state.nav=="Admin":
     elif not eh_admin():
         st.warning("Seu usuário não possui permissão de administrador.")
     else:
-        st.success("✅ Acesso administrativo liberado");mostrar_notificacao();st.session_state.ano_base=st.number_input("Ano de Referência",2020,2100,int(st.session_state.ano_base),step=1);abas=st.tabs(["➕ Novo Evento","📝 Avisos","✏️ Gerenciar Eventos","📥 Downloads"])
+        st.success("✅ Acesso administrativo liberado");mostrar_notificacao();st.session_state.ano_base=st.number_input("Ano de Referência",2020,2100,int(st.session_state.ano_base),step=1);abas=st.tabs(["➕ Novo Evento","📝 Avisos","✏️ Gerenciar Eventos","👥 Usuários","📥 Downloads"])
         with abas[0]:
             with st.form("novo",clear_on_submit=True):
                 nome=st.text_input("Nome","ENSAIO LOCAL");local=st.text_input("Local");dia=st.selectbox("Dia",range(7),format_func=lambda x:DIAS_SEMANA_PT[x]);semana=st.selectbox("Semana",[1,2,3,4,5]);hora=st.text_input("Hora","19:30 HRS");freq=st.selectbox("Frequência",FREQUENCIAS)
@@ -291,6 +325,35 @@ elif st.session_state.nav=="Admin":
                     try:excluir_evento(eid);definir_notificacao("✅ Evento excluído com sucesso!");st.rerun()
                     except Exception as e:st.error(f"Erro ao excluir: {e}")
         with abas[3]:
+            st.markdown("### 👥 Gerenciar acesso dos usuários")
+            st.caption("Como administrador, você pode definir uma nova senha para uma conta cadastrada. A senha atual nunca é exibida.")
+            try:
+                usuarios_auth=listar_usuarios_auth()
+                emails=sorted([u.get("email") for u in usuarios_auth if u.get("email")])
+            except Exception as e:
+                usuarios_auth=[];emails=[]
+                st.error(f"Não foi possível carregar os usuários: {e}")
+            if emails:
+                email_usuario=st.selectbox("Usuário / E-mail",emails)
+                with st.form("redefinir_senha_admin"):
+                    nova_senha_admin=st.text_input("Nova senha",type="password")
+                    confirmar_senha_admin=st.text_input("Confirmar nova senha",type="password")
+                    confirmar_reset=st.checkbox("Confirmo que desejo redefinir a senha deste usuário.")
+                    salvar_senha=st.form_submit_button("🔑 REDEFINIR SENHA",use_container_width=True,type="primary",disabled=not confirmar_reset)
+                if salvar_senha:
+                    if nova_senha_admin!=confirmar_senha_admin:
+                        st.error("As senhas não conferem.")
+                    else:
+                        try:
+                            redefinir_senha_usuario(email_usuario,nova_senha_admin)
+                            st.success(f"✅ Senha de {email_usuario} redefinida com sucesso.")
+                        except Exception as e:
+                            st.error(f"Não foi possível redefinir a senha: {e}")
+                st.info("Por segurança, envie a nova senha ao usuário por um canal privado e peça para ele trocá-la depois de entrar.")
+            elif not usuarios_auth:
+                st.info("Nenhum usuário disponível para gerenciamento.")
+
+        with abas[4]:
             try:st.download_button("⬇️ Baixar Excel",gerar_excel(st.session_state.ano_base,eventos,avisos),f"Calendario_{st.session_state.ano_base}.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",use_container_width=True)
             except Exception as e:st.error(f"Não foi possível gerar o Excel: {e}")
             try:st.download_button("⬇️ Baixar PDF",gerar_pdf(st.session_state.ano_base,eventos,avisos),f"Calendario_{st.session_state.ano_base}.pdf",mime="application/pdf",use_container_width=True)
