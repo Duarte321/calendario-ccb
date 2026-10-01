@@ -12,9 +12,16 @@ SUPABASE_URL = "https://ovnwnzqjjjtfqjodvusi.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_uBqke5HDz9U-xSKjxhzUww_-Y0qW367"
 APP_URL = "https://calendario-ccb-4dnxiyyyxfshae2pfswcwf.streamlit.app"
 
+MENSAGEM_SERVIDOR_INDISPONIVEL = (
+    "⚠️ O servidor está temporariamente indisponível. "
+    "Aguarde alguns instantes e tente novamente."
+)
+
+
 def _headers(token=None):
     key = SUPABASE_PUBLISHABLE_KEY
     return {"apikey": key, "Authorization": f"Bearer {token or key}", "Content-Type": "application/json"}
+
 
 def carregar_perfil():
     access_token = st.session_state.get("access_token")
@@ -22,22 +29,63 @@ def carregar_perfil():
     uid = user.get("id")
     if not access_token or not uid:
         return None
-    r = requests.get(f"{SUPABASE_URL}/rest/v1/perfis", headers=_headers(access_token), params={"user_id": f"eq.{uid}", "select": "user_id,nome,papel,ativo"}, timeout=10)
+
+    try:
+        r = requests.get(
+            f"{SUPABASE_URL}/rest/v1/perfis",
+            headers=_headers(access_token),
+            params={"user_id": f"eq.{uid}", "select": "user_id,nome,papel,ativo"},
+            timeout=10,
+        )
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        return None
+    except requests.exceptions.RequestException:
+        return None
+
     data = r.json() if r.ok else []
     perfil = data[0] if data else {"user_id": uid, "nome": user.get("email", ""), "papel": "usuario", "ativo": True}
     st.session_state["perfil"] = perfil
     return perfil
 
+
 def login(email, senha):
-    r = requests.post(f"{SUPABASE_URL}/auth/v1/token?grant_type=password", headers=_headers(), json={"email": email.strip(), "password": senha}, timeout=15)
+    email = (email or "").strip()
+    if not email or not senha:
+        return False, "Informe o e-mail e a senha."
+
+    try:
+        r = requests.post(
+            f"{SUPABASE_URL}/auth/v1/token?grant_type=password",
+            headers=_headers(),
+            json={"email": email, "password": senha},
+            timeout=15,
+        )
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        return False, MENSAGEM_SERVIDOR_INDISPONIVEL
+    except requests.exceptions.RequestException:
+        return False, MENSAGEM_SERVIDOR_INDISPONIVEL
+
     if not r.ok:
+        if r.status_code >= 500:
+            return False, MENSAGEM_SERVIDOR_INDISPONIVEL
         return False, "Usuário ou senha inválidos."
-    data = r.json()
-    st.session_state["access_token"] = data["access_token"]
-    st.session_state["refresh_token"] = data.get("refresh_token")
-    st.session_state["auth_user"] = data.get("user", {})
-    carregar_perfil()
+
+    try:
+        data = r.json()
+        st.session_state["access_token"] = data["access_token"]
+        st.session_state["refresh_token"] = data.get("refresh_token")
+        st.session_state["auth_user"] = data.get("user", {})
+    except (ValueError, KeyError):
+        return False, MENSAGEM_SERVIDOR_INDISPONIVEL
+
+    perfil = carregar_perfil()
+    if perfil is None:
+        for key in ("access_token", "refresh_token", "auth_user", "perfil"):
+            st.session_state.pop(key, None)
+        return False, MENSAGEM_SERVIDOR_INDISPONIVEL
+
     return True, None
+
 
 def logout():
     access_token = st.session_state.get("access_token")
@@ -49,11 +97,14 @@ def logout():
     for key in ("access_token", "refresh_token", "auth_user", "perfil"):
         st.session_state.pop(key, None)
 
+
 def _b64url(data):
     return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
 
+
 def _recovery_secret():
     return st.secrets.get("RECOVERY_SECRET", "") or st.secrets.get("SUPABASE_SECRET_KEY", "")
+
 
 def _recovery_verifier(recovery_id):
     segredo=_recovery_secret()
@@ -61,6 +112,7 @@ def _recovery_verifier(recovery_id):
         return None
     digest=hmac.new(segredo.encode("utf-8"),recovery_id.encode("utf-8"),hashlib.sha256).digest()
     return _b64url(digest)
+
 
 def enviar_recuperacao(email):
     email=(email or "").strip()
@@ -72,18 +124,26 @@ def enviar_recuperacao(email):
         return False,"Recuperação de senha ainda não está configurada no servidor."
     challenge=_b64url(hashlib.sha256(verifier.encode("utf-8")).digest())
     redirect_to=f"{APP_URL}/?recovery_id={quote(verifier_id)}"
-    r=requests.post(
-        f"{SUPABASE_URL}/auth/v1/recover",
-        params={"redirect_to":redirect_to},
-        headers=_headers(),
-        json={"email":email,"code_challenge":challenge,"code_challenge_method":"s256"},
-        timeout=15,
-    )
+    try:
+        r=requests.post(
+            f"{SUPABASE_URL}/auth/v1/recover",
+            params={"redirect_to":redirect_to},
+            headers=_headers(),
+            json={"email":email,"code_challenge":challenge,"code_challenge_method":"s256"},
+            timeout=15,
+        )
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        return False, MENSAGEM_SERVIDOR_INDISPONIVEL
+    except requests.exceptions.RequestException:
+        return False, MENSAGEM_SERVIDOR_INDISPONIVEL
     if r.ok:
         return True,"Se esse e-mail estiver cadastrado, você receberá um link para redefinir sua senha."
     if r.status_code==429:
         return False,"Aguarde um pouco antes de solicitar outro e-mail de recuperação."
+    if r.status_code>=500:
+        return False,MENSAGEM_SERVIDOR_INDISPONIVEL
     return False,"Não foi possível enviar o e-mail de recuperação agora."
+
 
 def _processar_callback_recuperacao():
     try:
@@ -97,12 +157,16 @@ def _processar_callback_recuperacao():
     if not verifier:
         st.session_state["recovery_error"]="Não foi possível validar a recuperação de senha."
         return
-    r=requests.post(
-        f"{SUPABASE_URL}/auth/v1/token?grant_type=pkce",
-        headers=_headers(),
-        json={"auth_code":code,"code_verifier":verifier},
-        timeout=15,
-    )
+    try:
+        r=requests.post(
+            f"{SUPABASE_URL}/auth/v1/token?grant_type=pkce",
+            headers=_headers(),
+            json={"auth_code":code,"code_verifier":verifier},
+            timeout=15,
+        )
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.RequestException):
+        st.session_state["recovery_error"]=MENSAGEM_SERVIDOR_INDISPONIVEL
+        return
     try:
         st.query_params.clear()
     except Exception:
@@ -113,6 +177,7 @@ def _processar_callback_recuperacao():
         st.session_state["recovery_error"]=None
     else:
         st.session_state["recovery_error"]="O link de recuperação é inválido ou expirou."
+
 
 def _tela_nova_senha():
     access_token=st.session_state.get("recovery_access_token")
@@ -130,12 +195,16 @@ def _tela_nova_senha():
         elif nova!=confirmar:
             st.error("As senhas não conferem.")
         else:
-            r=requests.put(
-                f"{SUPABASE_URL}/auth/v1/user",
-                headers={"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":f"Bearer {access_token}","Content-Type":"application/json"},
-                json={"password":nova},
-                timeout=15,
-            )
+            try:
+                r=requests.put(
+                    f"{SUPABASE_URL}/auth/v1/user",
+                    headers={"apikey":SUPABASE_PUBLISHABLE_KEY,"Authorization":f"Bearer {access_token}","Content-Type":"application/json"},
+                    json={"password":nova},
+                    timeout=15,
+                )
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.RequestException):
+                st.error(MENSAGEM_SERVIDOR_INDISPONIVEL)
+                st.stop()
             if r.ok:
                 st.session_state.pop("recovery_access_token",None)
                 st.session_state["password_reset_success"]=True
@@ -143,6 +212,7 @@ def _tela_nova_senha():
             else:
                 st.error("Não foi possível alterar a senha. Solicite um novo link de recuperação.")
     st.stop()
+
 
 def exigir_login():
     _processar_callback_recuperacao()
@@ -248,8 +318,10 @@ def exigir_login():
     st.caption("🔒 Acesso restrito a usuários autorizados.")
     st.stop()
 
+
 def eh_admin():
     return (st.session_state.get("perfil") or {}).get("papel") == "admin"
+
 
 def token():
     return st.session_state.get("access_token", "")
