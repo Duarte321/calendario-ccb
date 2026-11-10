@@ -20,8 +20,14 @@ FREQUENCIAS=["Todos os Meses","Meses Ímpares","Meses Pares"]
 
 
 def _headers(key,prefer=None):
-    api_key=SUPABASE_PUBLISHABLE_KEY if key and key != SUPABASE_PUBLISHABLE_KEY else key
-    h={"apikey":api_key,"Authorization":f"Bearer {key}","Content-Type":"application/json"}
+    # As chaves novas sb_secret_* não são JWTs: devem ir somente no apikey.
+    # Para sessões de usuários e chaves JWT legadas, Authorization continua sendo Bearer.
+    if key and key.startswith("sb_secret_"):
+        h={"apikey":key,"Content-Type":"application/json"}
+    else:
+        api_key=SUPABASE_PUBLISHABLE_KEY
+        bearer=key or SUPABASE_PUBLISHABLE_KEY
+        h={"apikey":api_key,"Authorization":f"Bearer {bearer}","Content-Type":"application/json"}
     if prefer:h["Prefer"]=prefer
     return h
 
@@ -81,7 +87,7 @@ def listar_usuarios_auth():
     r=requests.get(
         f"{SUPABASE_URL}/auth/v1/admin/users",
         params={"page":1,"per_page":1000},
-        headers={"apikey":k,"Authorization":f"Bearer {k}"},
+        headers=_headers(k),
         timeout=15,
     )
     r.raise_for_status()
@@ -101,7 +107,7 @@ def redefinir_senha_usuario(email,nova_senha):
     k=_admin_secret()
     r=requests.put(
         f"{SUPABASE_URL}/auth/v1/admin/users/{usuario['id']}",
-        headers={"apikey":k,"Authorization":f"Bearer {k}","Content-Type":"application/json"},
+        headers=_headers(k),
         json={"password":nova_senha},
         timeout=15,
     )
